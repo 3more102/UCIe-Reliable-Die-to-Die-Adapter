@@ -18,6 +18,7 @@ module stream_adapter #(
 );
     wire [WIDTH-1:0] buffered_data;
     wire buffered_valid, buffered_ready;
+    wire tx_ready;
     wire ingress_ready;
     elastic_buffer #(.WIDTH(WIDTH)) ingress (
         .clk(clk),.rst_n(rst_n),.s_data(s_data),
@@ -25,9 +26,11 @@ module stream_adapter #(
         .m_data(buffered_data),.m_valid(buffered_valid),
         .m_ready(buffered_ready));
     assign s_ready = link_up && ingress_ready;
+    // Prevent draining the ingress buffer while the link is down.
+    assign buffered_ready = link_up && tx_ready;
     credit_tx #(.WIDTH(WIDTH),.CREDIT_WIDTH(CREDIT_WIDTH)) tx (
         .clk(clk),.rst_n(rst_n),.s_data(buffered_data),
-        .s_valid(buffered_valid && link_up),.s_ready(buffered_ready),
+        .s_valid(buffered_valid && link_up),.s_ready(tx_ready),
         .m_data(m_data),.m_valid(m_valid),.m_ready(m_ready),
         .credit_return(credit_return),.credits(credits));
 endmodule

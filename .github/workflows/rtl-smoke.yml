@@ -26,3 +26,43 @@ jobs:
       - name: Compile streaming integration
         run: |
           iverilog -g2012 -s stream_adapter -o simv_stream rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv
+
+      - name: Run streaming link-down regression
+        run: |
+          iverilog -g2012 -s tb_stream_adapter -o simv_stream_tb rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_adapter.sv
+          vvp simv_stream_tb
+
+      - name: Run continuous-throughput regression
+        run: |
+          iverilog -g2012 -s tb_elastic_throughput -o simv_throughput rtl/elastic_buffer.sv tb/tb_elastic_throughput.sv
+          vvp simv_throughput
+
+      - name: Run CRC-16 known-vector regression
+        run: |
+          iverilog -g2012 -s tb_crc16_ccitt -o simv_crc rtl/crc16_ccitt.sv tb/tb_crc16_ccitt.sv
+          vvp simv_crc
+
+      - name: Run CRC guard corruption regression
+        run: |
+          iverilog -g2012 -s tb_crc16_guard -o simv_crc_guard rtl/crc16_ccitt.sv rtl/crc16_guard.sv tb/tb_crc16_guard.sv
+          vvp simv_crc_guard
+
+      - name: Run receive integrity regression
+        run: |
+          iverilog -g2012 -s tb_integrity_rx -o simv_rx rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_rx.sv tb/tb_integrity_rx.sv
+          vvp simv_rx
+
+      - name: Run experimental TX-RX integrity loopback
+        run: |
+          iverilog -g2012 -s tb_integrity_loopback -o simv_loop rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_tx.sv rtl/integrity_rx.sv tb/tb_integrity_loopback.sv
+          vvp simv_loop
+
+      - name: Run experimental replay-slot regression
+        run: |
+          iverilog -g2012 -s tb_replay_slot -o simv_replay rtl/replay_slot.sv tb/tb_replay_slot.sv
+          vvp simv_replay
+
+      - name: Run experimental retry watchdog regression
+        run: |
+          iverilog -g2012 -s tb_retry_watchdog -o simv_watchdog rtl/retry_watchdog.sv tb/tb_retry_watchdog.sv
+          vvp simv_watchdog
