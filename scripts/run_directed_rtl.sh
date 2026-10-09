@@ -17,4 +17,5 @@ run tb_elastic_buffer rtl/elastic_buffer.sv tb/tb_elastic_buffer.sv
 run tb_credit_tx rtl/credit_tx.sv tb/tb_credit_tx.sv
 run tb_credit_tx_edges rtl/credit_tx.sv tb/tb_credit_tx_edges.sv
 run tb_link_manager rtl/link_manager.sv tb/tb_link_manager.sv
-echo "PASS: all four directed RTL tests"
+run tb_stream_adapter rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_adapter.sv
+echo "PASS: all five directed RTL tests"
