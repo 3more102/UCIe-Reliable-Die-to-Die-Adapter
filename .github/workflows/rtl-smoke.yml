@@ -51,3 +51,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_integrity_rx -o simv_rx rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_rx.sv tb/tb_integrity_rx.sv
           vvp simv_rx
+
+      - name: Run experimental TX-RX integrity loopback
+        run: |
+          iverilog -g2012 -s tb_integrity_loopback -o simv_loop rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_tx.sv rtl/integrity_rx.sv tb/tb_integrity_loopback.sv
+          vvp simv_loop
