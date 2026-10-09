@@ -18,3 +18,11 @@ jobs:
         run: |
           iverilog -g2012 -s tb_credit_tx -o simv_credit rtl/credit_tx.sv tb/tb_credit_tx.sv
           vvp simv_credit
+
+      - name: Run link manager smoke
+        run: |
+          iverilog -g2012 -s tb_link_manager -o simv_link rtl/link_manager.sv tb/tb_link_manager.sv
+          vvp simv_link
+      - name: Compile streaming integration
+        run: |
+          iverilog -g2012 -s stream_adapter -o simv_stream rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv
