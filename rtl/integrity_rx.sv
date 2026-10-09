@@ -13,7 +13,7 @@ module integrity_rx #(parameter integer DATA_WIDTH=64)(
 );
  wire [15:0] computed_crc;
  wire crc_ok, ingress_ready, accept;
- crc16_guard #(.DATA_WIDTH(DATA_WIDTH)) checker (
+ crc16_guard #(.DATA_WIDTH(DATA_WIDTH)) crc_checker_inst (
   .data(s_data),.received_crc(s_crc),.computed_crc(computed_crc),.crc_ok(crc_ok));
  assign s_ready=ingress_ready;
  assign accept=s_valid && s_ready;
