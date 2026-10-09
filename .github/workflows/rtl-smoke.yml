@@ -36,3 +36,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_elastic_throughput -o simv_throughput rtl/elastic_buffer.sv tb/tb_elastic_throughput.sv
           vvp simv_throughput
+
+      - name: Run CRC-16 known-vector regression
+        run: |
+          iverilog -g2012 -s tb_crc16_ccitt -o simv_crc rtl/crc16_ccitt.sv tb/tb_crc16_ccitt.sv
+          vvp simv_crc
