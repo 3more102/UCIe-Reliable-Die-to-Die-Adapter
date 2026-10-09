@@ -32,6 +32,7 @@ module tb_stream_adapter;
             @(negedge clk);
         end
         link_up=1;
+        #1; // Allow combinational link gating to settle before sampling.
         if (!m_valid || m_data !== 8'hC3)
             $fatal(1,"buffered data not available after recovery");
         @(negedge clk);
