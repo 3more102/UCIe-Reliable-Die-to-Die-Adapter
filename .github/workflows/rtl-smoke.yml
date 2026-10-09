@@ -13,3 +13,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_elastic_buffer -o simv rtl/elastic_buffer.sv tb/tb_elastic_buffer.sv
           vvp simv
+
+      - name: Run credit TX smoke
+        run: |
+          iverilog -g2012 -s tb_credit_tx -o simv_credit rtl/credit_tx.sv tb/tb_credit_tx.sv
+          vvp simv_credit
