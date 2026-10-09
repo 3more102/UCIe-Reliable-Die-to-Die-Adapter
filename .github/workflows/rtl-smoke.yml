@@ -61,3 +61,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_replay_slot -o simv_replay rtl/replay_slot.sv tb/tb_replay_slot.sv
           vvp simv_replay
+
+      - name: Run experimental retry watchdog regression
+        run: |
+          iverilog -g2012 -s tb_retry_watchdog -o simv_watchdog rtl/retry_watchdog.sv tb/tb_retry_watchdog.sv
+          vvp simv_watchdog
