@@ -46,3 +46,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_crc16_guard -o simv_crc_guard rtl/crc16_ccitt.sv rtl/crc16_guard.sv tb/tb_crc16_guard.sv
           vvp simv_crc_guard
+
+      - name: Run receive integrity regression
+        run: |
+          iverilog -g2012 -s tb_integrity_rx -o simv_rx rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_rx.sv tb/tb_integrity_rx.sv
+          vvp simv_rx
