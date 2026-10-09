@@ -60,9 +60,11 @@ module tb_stream_adapter;
             credit_return = rng[2];
             @(negedge clk);
         end
-        s_valid = 0;
+        // Drain any source beat still waiting for its handshake.
         m_ready = 1;
         credit_return = 1;
+        while (s_valid && !source_accepted) @(negedge clk);
+        s_valid = 0;
         repeat (20) @(negedge clk);
         if (head != tail) $fatal(1, "undelivered buffered data: %0d", tail-head);
         if (tail == 0) $fatal(1, "no transfers exercised");
