@@ -49,8 +49,11 @@ module tb_stream_adapter;
             next_rng = next_rng ^ (next_rng >> 17);
             next_rng = next_rng ^ (next_rng << 5);
             rng = next_rng;
-            s_valid = rng[0];
-            s_data = cycle[7:0];
+            // Respect ready/valid: hold payload and valid until accepted.
+            if (!s_valid || s_ready) begin
+                s_valid = rng[0];
+                s_data = cycle[7:0];
+            end
             m_ready = rng[1];
             credit_return = rng[2];
             @(negedge clk);
