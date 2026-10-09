@@ -56,3 +56,8 @@ jobs:
         run: |
           iverilog -g2012 -s tb_integrity_loopback -o simv_loop rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/crc16_guard.sv rtl/integrity_tx.sv rtl/integrity_rx.sv tb/tb_integrity_loopback.sv
           vvp simv_loop
+
+      - name: Run experimental replay-slot regression
+        run: |
+          iverilog -g2012 -s tb_replay_slot -o simv_replay rtl/replay_slot.sv tb/tb_replay_slot.sv
+          vvp simv_replay
