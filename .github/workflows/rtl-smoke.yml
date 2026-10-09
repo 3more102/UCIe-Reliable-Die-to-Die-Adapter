@@ -26,3 +26,8 @@ jobs:
       - name: Compile streaming integration
         run: |
           iverilog -g2012 -s stream_adapter -o simv_stream rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv
+
+      - name: Run streaming link-down regression
+        run: |
+          iverilog -g2012 -s tb_stream_adapter -o simv_stream_tb rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_adapter.sv
+          vvp simv_stream_tb
