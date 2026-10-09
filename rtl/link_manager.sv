@@ -18,7 +18,7 @@ module link_manager (
             TRAINING: if (fault) state <= RECOVERY;
                       else if (training_done) state <= ACTIVE;
             ACTIVE: if (fault) state <= RECOVERY;
-            RECOVERY: if (recovery_done) state <= TRAINING;
+            RECOVERY: if (recovery_done && !fault) state <= TRAINING;
             default: state <= DOWN;
         endcase
     end
