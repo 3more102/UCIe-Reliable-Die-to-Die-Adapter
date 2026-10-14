@@ -10,12 +10,13 @@ This repository currently contains a generic, single-clock ready/valid streaming
 
 | Feature | Current evidence | Gap | Next action |
 | --- | --- | --- | --- |
-| 48 GT/s profile selection | `stream_adapter.RATE_PROFILE_GT_S=48`; directed test checks the reported value and runs data, stall, link-down, and credit-recovery cases | Digital parameter selection does not generate a 48 GT/s serial signal | Preserve this profile in the later PHY/clock model and verify against normative requirements |
-| 64 GT/s target profile selection | `stream_adapter.RATE_PROFILE_GT_S=64` by default; directed test checks the reported value and runs the same datapath/reliability cases | No serializer, deserializer, lane PHY, or physical timing evidence | Add a PHY-facing model and timing evidence before claiming line-rate operation |
+| 48 GT/s profile selection | `stream_adapter.RATE_PROFILE_GT_S=48`; directed and randomized tests check the profile and run stream, backpressure, link-down, reset, and credit-accounting cases | Digital parameter selection does not generate a 48 GT/s serial signal | Preserve this profile in the later PHY/clock model and verify against normative requirements |
+| 64 GT/s target profile selection | `stream_adapter.RATE_PROFILE_GT_S=64` by default; directed and randomized tests check the profile and run the same datapath/reliability cases | No serializer, deserializer, lane PHY, or physical timing evidence | Add a PHY-facing model and timing evidence before claiming line-rate operation |
 | Unsupported rate rejection | Directed 32 GT/s test expects a zero reported rate and disabled ingress/egress handshakes | Only values outside 48/64 are rejected; additional supported profiles require specification-backed changes | Expand the allowed set only when the architecture and selected UCIe revision justify it |
 | Ready/valid buffering and link-down retention | Existing elastic buffer and stream regression; the integration now gates buffer consumption while the link/profile is inactive | No UCIe flit framing, link epoch, lane alignment, or protocol-aware recovery | Map these behaviors to the selected normative protocol and test reset/retrain interactions |
 | Digital reset isolation and recovery | `tb_stream_reset` at 48 and 64 profiles checks no handshakes during reset, clears pending data and credits, rejects reset-period traffic, and delivers a fresh post-reset word once | Reset behavior is a project-defined single-clock model choice; PHY and protocol-layer reset sequencing are absent | Define reset sequencing from the selected UCIe revision and integrate it across adapter/PHY boundaries |
-| Credit gating and recovery | Generic `credit_tx`; `tb_credit_tx_boundaries` covers saturation, full simultaneous send/return, depletion, refill, stall retention, and consumption; rate-profile test covers no-credit hold and return | Credit unit, initialization, return, saturation, and reset semantics are project-local | Replace or constrain the generic model from normative requirements and add boundary/error assertions |
+| Integrated digital datapath ordering | `tb_stream_random` sends/receives 228 checked transactions under randomized link state, backpressure, and credit return for each profile | Single-clock model has no PHY clock, flit/lane alignment, or UCIe throughput representation | Retain as infrastructure coverage and extend with normative adapter framing when the full spec is available |
+| Credit gating and recovery | Generic `credit_tx`; boundary bench covers saturation, simultaneous send/return, depletion, refill, stall retention, and consumption; randomized adapter bench checks credit accounting; directed profile test covers no-credit hold and return | Credit unit, initialization, return, saturation, and reset semantics are project-local | Replace or constrain the generic model from normative requirements and add boundary/error assertions |
 | Prototype recovery state handling | `tb_link_manager` checks link-down during recovery and blocks recovery exit while `fault` remains asserted, even if `recovery_done` is high | `link_manager` state names and inputs are project-local and do not model normative UCIe initialization/recovery | Map initialization, recovery, and fault behavior to the selected normative UCIe revision |
 | CRC and retry | Generic CCITT-16 calculator and independent mathematical checks exist on `main` | No UCIe-defined CRC coverage/field mapping or end-to-end replay/retry implementation | Derive CRC/retry behavior from the full specification; keep generic CRC tests labeled as infrastructure only |
 | PHY and electrical link at 48/64 GT/s | No PHY RTL, electrical model, timing constraints, lab measurements, or interoperability report in this repository | No evidence for a physical lane rate or electrical performance | Add suitable PHY, timing, SI/PI, and hardware/interoperability evidence; otherwise report this as unverified |
@@ -50,6 +51,11 @@ for profile in 48 64; do
   iverilog -g2012 -Ptb_stream_reset.RATE_PROFILE_GT_S=${profile} -s tb_stream_reset -o simv_stream_reset rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_reset.sv
   vvp simv_stream_reset
 done
+
+for profile in 48 64; do
+  iverilog -g2012 -Ptb_stream_random.RATE_PROFILE_GT_S=${profile} -s tb_stream_random -o simv_stream_random rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_random.sv
+  vvp simv_stream_random
+done
 ```
 
 The GitHub Actions smoke workflow is configured to run these tests. The commands were also run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The feature branch has been uploaded. The GitHub combined-status lookup returned no checks for its final commit at the time of this record, so hosted CI remains unconfirmed.
@@ -62,6 +68,7 @@ The GitHub Actions smoke workflow is configured to run these tests. The commands
 | RTL simulation | PASS locally with Icarus Verilog 12.0 for both requested profiles, the unsupported-rate case, link-down retention, and the existing smoke/stress benches |
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
+| Randomized integrated datapath | `tb_stream_random` PASS at both profiles: 228 correctly ordered transactions each, with exact 2-bit credit-model accounting |
 | Synthesis / formal | Not run |
 | Hardware measurement / interoperability | Not available |
 
@@ -75,6 +82,7 @@ The GitHub Actions smoke workflow is configured to run these tests. The commands
 6. Added a fault-priority condition to the project-local recovery FSM and extended its test to hold `fault` high through a completed-recovery indication. Added a directed generic credit boundary bench and CI step. The preconfigured package mirror returned HTTP 502; installed Icarus Verilog 12.0 from the signed Ubuntu Noble archive using a temporary package source. Both new benches PASS locally.
 7. Uploaded the two change sets to `feat/ucie-3-rate-profiles-20261014` using the GitHub integration after shell `git push` could not authenticate. The uploaded branch tree matches the locally tested tree. The combined-status lookup returned no checks; no PR was created.
 8. Gated the stream adapter's active path during reset and added reset isolation/flush/recovery tests. `tb_stream_reset` passes at 48 and 64 GT/s digital profiles with Icarus Verilog 12.0. This reset contract is project-defined and is not a UCIe normative reset sequence.
+9. Added a deterministic randomized stream-adapter scoreboard, output-stall check, link-down check, and independent bounded-credit model. Both profile runs PASS with 228 transactions delivered; this verifies the generic digital datapath only.
 
 ### Exact local commands for the profile and link-retention runs
 
