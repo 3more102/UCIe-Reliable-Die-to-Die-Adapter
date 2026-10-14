@@ -32,6 +32,9 @@ module tb_reliable_stream_random;
     wire retry_failed;
     wire [7:0] retry_count;
     wire crc_error;
+    wire [15:0] crc_error_count_status;
+    wire [15:0] timeout_count_status;
+    wire [15:0] link_recovery_count_status;
     reg randomize = 0;
     reg [31:0] lfsr = 32'h6D2B_79F5;
     reg source_handshake = 0;
@@ -61,7 +64,10 @@ module tb_reliable_stream_random;
         .rate_profile_gt_s_o(rate_profile_gt_s), .link_up_o(link_up),
         .link_state_o(link_state), .credits_o(credits), .tx_busy_o(tx_busy),
         .retry_failed_o(retry_failed), .retry_count_o(retry_count),
-        .crc_error_o(crc_error)
+        .crc_error_o(crc_error),
+        .crc_error_count_o(crc_error_count_status),
+        .response_timeout_count_o(timeout_count_status),
+        .link_recovery_count_o(link_recovery_count_status)
     );
 
     function [31:0] expected_payload(input integer index);
@@ -216,6 +222,10 @@ module tb_reliable_stream_random;
                    crc_error_count, INJECTED_ERRORS);
         if (recovery_count != 2)
             $fatal(1, "recovery count mismatch got=%0d expected=2", recovery_count);
+        if (crc_error_count_status != crc_error_count || timeout_count_status != 0 ||
+            link_recovery_count_status != recovery_count)
+            $fatal(1, "status counters mismatch crc=%0d timeout=%0d recovery=%0d",
+                   crc_error_count_status, timeout_count_status, link_recovery_count_status);
         if (tx_busy || retry_failed)
             $fatal(1, "sender did not return to idle after randomized traffic");
 

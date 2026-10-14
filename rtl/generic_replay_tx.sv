@@ -25,7 +25,8 @@ module generic_replay_tx #(
     input  wire                         response_seq_i,
     output wire                         busy_o,
     output wire                         failed_o,
-    output reg  [RETRY_COUNT_WIDTH-1:0] retry_count_o
+    output reg  [RETRY_COUNT_WIDTH-1:0] retry_count_o,
+    output reg                          timeout_event_o
 );
     localparam [1:0] IDLE = 2'd0;
     localparam [1:0] SEND = 2'd1;
@@ -70,7 +71,9 @@ module generic_replay_tx #(
             seq_q <= 1'b0;
             retry_count_o <= {RETRY_COUNT_WIDTH{1'b0}};
             response_wait_q <= {TIMER_WIDTH{1'b0}};
+            timeout_event_o <= 1'b0;
         end else begin
+            timeout_event_o <= 1'b0;
             case (state_q)
                 IDLE: begin
                     if (s_valid_i && s_ready_o) begin
@@ -104,6 +107,7 @@ module generic_replay_tx #(
                         // edge. Time advances only on active-link model cycles.
                         if (response_wait_q == RESPONSE_TIMEOUT_CYCLES - 1) begin
                             response_wait_q <= {TIMER_WIDTH{1'b0}};
+                            timeout_event_o <= 1'b1;
                             if (retry_count_o < MAX_RETRIES) begin
                                 retry_count_o <= retry_count_o + 1'b1;
                                 state_q <= SEND;

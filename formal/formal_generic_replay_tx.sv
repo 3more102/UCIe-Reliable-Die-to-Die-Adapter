@@ -28,6 +28,7 @@ module formal_generic_replay_tx;
     wire busy;
     wire failed;
     wire [7:0] retry_count;
+    wire timeout_event;
 
     generic_replay_tx #(
         .DATA_WIDTH(DATA_WIDTH),
@@ -41,7 +42,7 @@ module formal_generic_replay_tx;
         .frame_ready_i(frame_ready), .response_valid_i(response_valid),
         .response_ready_o(response_ready), .response_ack_i(response_ack),
         .response_seq_i(response_seq), .busy_o(busy), .failed_o(failed),
-        .retry_count_o(retry_count)
+        .retry_count_o(retry_count), .timeout_event_o(timeout_event)
     );
 
     reg [1:0] ref_state = IDLE;
@@ -50,6 +51,7 @@ module formal_generic_replay_tx;
     reg ref_seq = 0;
     reg [7:0] ref_retries = 0;
     reg [$clog2(RESPONSE_TIMEOUT_CYCLES)-1:0] ref_wait = 0;
+    reg ref_timeout_event = 0;
     wire [DATA_WIDTH:0] ref_crc_input = {ref_seq, s_data};
     wire [15:0] ref_calculated_crc;
     crc16_ccitt #(.DATA_WIDTH(DATA_WIDTH+1)) ref_crc_calc (
@@ -64,7 +66,9 @@ module formal_generic_replay_tx;
             ref_seq <= 0;
             ref_retries <= 0;
             ref_wait <= 0;
+            ref_timeout_event <= 0;
         end else begin
+            ref_timeout_event <= 0;
             assert(s_ready == ((ref_state == IDLE) && link_active));
             assert(frame_valid == ((ref_state == SEND) && link_active));
             assert(frame_data == ref_data);
@@ -74,6 +78,7 @@ module formal_generic_replay_tx;
             assert(busy == ((ref_state != IDLE) && (ref_state != FAILED)));
             assert(failed == (ref_state == FAILED));
             assert(retry_count == ref_retries);
+            assert(timeout_event == ref_timeout_event);
 
             case (ref_state)
                 IDLE: if (s_valid && link_active) begin
@@ -102,6 +107,7 @@ module formal_generic_replay_tx;
                     end else if (link_active) begin
                         if (ref_wait == RESPONSE_TIMEOUT_CYCLES - 1) begin
                             ref_wait <= 0;
+                            ref_timeout_event <= 1;
                             if (ref_retries < MAX_RETRIES) begin
                                 ref_retries <= ref_retries + 1'b1;
                                 ref_state <= SEND;

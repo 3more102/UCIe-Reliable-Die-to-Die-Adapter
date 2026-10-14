@@ -1,6 +1,6 @@
 module tb_reliable_stream_model;
     parameter integer RATE_PROFILE_GT_S = 64;
-    parameter integer MAX_RETRIES = 2;
+    parameter integer MAX_RETRIES = 3;
     parameter integer RESPONSE_TIMEOUT_CYCLES = 4;
 
     reg clk = 0;
@@ -30,6 +30,9 @@ module tb_reliable_stream_model;
     wire retry_failed;
     wire [7:0] retry_count;
     wire crc_error;
+    wire [1:0] crc_error_count;
+    wire [1:0] response_timeout_count;
+    wire [1:0] link_recovery_count;
     integer i;
     integer timeout;
     integer error_count;
@@ -39,6 +42,7 @@ module tb_reliable_stream_model;
         .CREDIT_WIDTH(4),
         .MAX_RETRIES(MAX_RETRIES),
         .RESPONSE_TIMEOUT_CYCLES(RESPONSE_TIMEOUT_CYCLES),
+        .STATUS_COUNT_WIDTH(2),
         .RATE_PROFILE_GT_S(RATE_PROFILE_GT_S)
     ) dut (
         .clk(clk),
@@ -65,7 +69,10 @@ module tb_reliable_stream_model;
         .tx_busy_o(tx_busy),
         .retry_failed_o(retry_failed),
         .retry_count_o(retry_count),
-        .crc_error_o(crc_error)
+        .crc_error_o(crc_error),
+        .crc_error_count_o(crc_error_count),
+        .response_timeout_count_o(response_timeout_count),
+        .link_recovery_count_o(link_recovery_count)
     );
 
     task start_link;
@@ -222,6 +229,8 @@ module tb_reliable_stream_model;
         end
         if (tx_busy || !m_valid || m_data !== 32'h1357_9BDF)
             $fatal(1, "retained ACK did not retire replay without losing receive data");
+        if (link_recovery_count != 1)
+            $fatal(1, "link recovery counter did not record the in-flight recovery");
         m_ready = 1;
         @(posedge clk);
         @(negedge clk); m_ready = 0;
@@ -261,6 +270,8 @@ module tb_reliable_stream_model;
         end
         if (tx_busy || !m_valid || m_data !== 32'hC0DE_64A5)
             $fatal(1, "duplicate ACK after timeout did not retire replay exactly once");
+        if (response_timeout_count != 1)
+            $fatal(1, "response timeout counter did not record the dropped ACK");
         m_ready = 1;
         @(negedge clk); m_ready = 0;
         if (m_valid) $fatal(1, "response-loss replay delivered the payload twice");
@@ -274,6 +285,8 @@ module tb_reliable_stream_model;
         @(negedge clk); recovery_done = 0; training_done = 1;
         @(negedge clk); training_done = 0;
         if (!link_up || !tx_busy) $fatal(1, "packet did not survive link recovery");
+        if (link_recovery_count != 2)
+            $fatal(1, "link recovery counter mismatch after second recovery");
         grant_credit();
         wait_for_delivery(32'hDEAD_BEEF);
         m_ready = 1;
@@ -292,7 +305,8 @@ module tb_reliable_stream_model;
         credit_return = 0;
         corrupt_crc = 0;
         repeat (2) @(negedge clk);
-        if (link_up || tx_busy || credits != 0 || m_valid || retry_failed)
+        if (link_up || tx_busy || credits != 0 || m_valid || retry_failed ||
+            crc_error_count != 0 || response_timeout_count != 0 || link_recovery_count != 0)
             $fatal(1, "reset did not clear link, replay, credit, and receive state");
         rst_n = 1;
         start_link();
@@ -344,6 +358,9 @@ module tb_reliable_stream_model;
             $fatal(1, "retry exhaustion did not fail closed");
         if (error_count != (MAX_RETRIES + 2))
             $fatal(1, "unexpected CRC error count %0d", error_count);
+        if (crc_error_count != 2'b11 || response_timeout_count != 0 || link_recovery_count != 0)
+            $fatal(1, "saturating status counters mismatch crc=%0d timeout=%0d recovery=%0d",
+                   crc_error_count, response_timeout_count, link_recovery_count);
 
         $display("PASS tb_reliable_stream_model profile=%0d simulated attempts=%0d", RATE_PROFILE_GT_S, error_count);
         $finish;

@@ -23,6 +23,7 @@ module tb_generic_replay_tx;
     wire busy;
     wire failed;
     wire [7:0] retry_count;
+    wire timeout_event;
     reg no_timeout_s_valid = 0;
     reg [DATA_WIDTH-1:0] no_timeout_s_data = 0;
     reg no_timeout_frame_ready = 0;
@@ -47,7 +48,7 @@ module tb_generic_replay_tx;
         .frame_ready_i(frame_ready), .response_valid_i(response_valid),
         .response_ready_o(response_ready), .response_ack_i(response_ack),
         .response_seq_i(response_seq), .busy_o(busy), .failed_o(failed),
-        .retry_count_o(retry_count)
+        .retry_count_o(retry_count), .timeout_event_o(timeout_event)
     );
 
     generic_replay_tx #(
@@ -196,23 +197,23 @@ module tb_generic_replay_tx;
         handshake_frame(16'h5AA5, 1'b0);
         repeat (2) @(posedge clk);
         @(negedge clk);
-        if (!response_ready || retry_count != 0 || frame_valid)
+        if (!response_ready || retry_count != 0 || frame_valid || timeout_event)
             $fatal(1, "response timeout expired before its configured boundary");
         link_active = 0;
         repeat (5) begin
             @(posedge clk);
             @(negedge clk);
-            if (response_ready || retry_count != 0 || frame_valid || !busy)
+            if (response_ready || retry_count != 0 || frame_valid || !busy || timeout_event)
                 $fatal(1, "response timer advanced or packet changed while link was down");
         end
         link_active = 1;
         @(posedge clk);
         @(negedge clk);
-        if (retry_count != 0 || frame_valid)
+        if (retry_count != 0 || frame_valid || timeout_event)
             $fatal(1, "response timeout expired one active cycle early after recovery");
         @(posedge clk);
         @(negedge clk);
-        if (retry_count != 1 || !frame_valid || !busy)
+        if (retry_count != 1 || !frame_valid || !busy || !timeout_event)
             $fatal(1, "response timeout did not schedule retry at exact active-cycle boundary");
         handshake_frame(16'h5AA5, 1'b0);
         send_response(1'b1, 1'b0);
@@ -230,14 +231,14 @@ module tb_generic_replay_tx;
                     @(negedge clk);
                     timeout = timeout + 1;
                 end
-                if (retry_count != attempt + 1 || !frame_valid || !busy || failed)
+                if (retry_count != attempt + 1 || !frame_valid || !busy || failed || !timeout_event)
                     $fatal(1, "timeout retry count/boundary mismatch on attempt %0d", attempt);
             end else begin
                 while (!failed && timeout < RESPONSE_TIMEOUT_CYCLES + 3) begin
                     @(negedge clk);
                     timeout = timeout + 1;
                 end
-                if (!failed || busy || retry_count != MAX_RETRIES || frame_valid)
+                if (!failed || busy || retry_count != MAX_RETRIES || frame_valid || !timeout_event)
                     $fatal(1, "response-timeout exhaustion did not fail closed");
             end
         end

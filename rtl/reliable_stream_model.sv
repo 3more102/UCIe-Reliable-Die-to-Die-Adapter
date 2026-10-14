@@ -6,6 +6,7 @@ module reliable_stream_model #(
     parameter integer CREDIT_WIDTH = 8,
     parameter integer MAX_RETRIES = 2,
     parameter integer RESPONSE_TIMEOUT_CYCLES = 16,
+    parameter integer STATUS_COUNT_WIDTH = 16,
     parameter integer RATE_PROFILE_GT_S = 64
 ) (
     input  wire                  clk,
@@ -33,7 +34,10 @@ module reliable_stream_model #(
     output wire                  tx_busy_o,
     output wire                  retry_failed_o,
     output wire [7:0]            retry_count_o,
-    output wire                  crc_error_o
+    output wire                  crc_error_o,
+    output reg  [STATUS_COUNT_WIDTH-1:0] crc_error_count_o,
+    output reg  [STATUS_COUNT_WIDTH-1:0] response_timeout_count_o,
+    output reg  [STATUS_COUNT_WIDTH-1:0] link_recovery_count_o
 );
     localparam integer FRAME_WIDTH = DATA_WIDTH + 17;
     localparam integer PROFILE_OK = (RATE_PROFILE_GT_S == 48) || (RATE_PROFILE_GT_S == 64);
@@ -67,6 +71,7 @@ module reliable_stream_model #(
     wire rx_response_ack;
     wire rx_response_seq;
     wire crc_error;
+    wire timeout_event;
 
     assign profile_supported_o = PROFILE_OK[0];
     assign rate_profile_gt_s_o = RATE_PROFILE_GT_S[7:0];
@@ -131,7 +136,8 @@ module reliable_stream_model #(
         .response_seq_i(rx_response_seq),
         .busy_o(replay_busy),
         .failed_o(retry_failed_o),
-        .retry_count_o(retry_count_o)
+        .retry_count_o(retry_count_o),
+        .timeout_event_o(timeout_event)
     );
 
     credit_tx #(
@@ -174,4 +180,21 @@ module reliable_stream_model #(
     assign crc_error_o = crc_error;
     assign m_data_o = rx_data;
     assign m_valid_o = rx_valid;
+
+    // Project-defined saturating diagnostic counters. They are reset with the
+    // model and are not UCIe-standard status fields.
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            crc_error_count_o <= {STATUS_COUNT_WIDTH{1'b0}};
+            response_timeout_count_o <= {STATUS_COUNT_WIDTH{1'b0}};
+            link_recovery_count_o <= {STATUS_COUNT_WIDTH{1'b0}};
+        end else begin
+            if (crc_error && !(&crc_error_count_o))
+                crc_error_count_o <= crc_error_count_o + 1'b1;
+            if (timeout_event && !(&response_timeout_count_o))
+                response_timeout_count_o <= response_timeout_count_o + 1'b1;
+            if (active && fault_i && !(&link_recovery_count_o))
+                link_recovery_count_o <= link_recovery_count_o + 1'b1;
+        end
+    end
 endmodule

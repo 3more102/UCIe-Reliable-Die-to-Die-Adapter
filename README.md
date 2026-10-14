@@ -8,6 +8,7 @@ Generic, single-clock digital prototype. **Not a UCIe-compliant implementation.*
 ## Current contents
 - Parameterized, ready/valid elastic buffer and credit-gated TX in synthesizable SystemVerilog
 - Project-local link manager, generic stream integration, replay sender, CRC-checking receiver, and duplicate suppression
+- Project-defined saturating counters for CRC errors, response timeouts, and link recoveries
 - Single-clock reliability model configured for 48 or 64 GT/s profile labels; the rate is metadata and does not set a clock or physical transfer rate
 - SystemVerilog directed and stress regressions, plus independent generic CRC reference tests
 - Yosys SAT reference checks for buffering, generic credits, prototype link control, and generic replay/receive behavior
