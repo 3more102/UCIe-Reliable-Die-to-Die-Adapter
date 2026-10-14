@@ -217,17 +217,27 @@ module tb_reliable_stream_model;
         rst_n = 1;
         start_link();
         send_payload(32'h0123_4567);
+        send_payload(32'h7654_3210);
+        if (!tx_busy || s_ready)
+            $fatal(1, "ingress queue did not retain the second ordered payload");
         grant_credit();
         wait_for_delivery(32'h0123_4567);
+        m_ready = 1;
+        @(negedge clk); m_ready = 0;
+        if (m_valid) $fatal(1, "post-reset data was not consumed");
+        if (!tx_busy || credits != 0)
+            $fatal(1, "second post-reset frame was not retained in ingress");
+        grant_credit();
+        wait_for_delivery(32'h7654_3210);
         timeout = 0;
         while (tx_busy && timeout < 30) begin
             @(negedge clk);
             timeout = timeout + 1;
         end
-        if (tx_busy) $fatal(1, "fresh post-reset frame was not acknowledged");
+        if (tx_busy) $fatal(1, "queued second frame was not acknowledged");
         m_ready = 1;
         @(negedge clk); m_ready = 0;
-        if (m_valid) $fatal(1, "post-reset data was not consumed");
+        if (m_valid) $fatal(1, "second queued payload was not consumed");
 
         // Exhaust the project-local retry limit: every bad attempt is dropped.
         send_payload(32'hBAD0_CAFE);

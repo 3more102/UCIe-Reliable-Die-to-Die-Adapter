@@ -45,6 +45,11 @@ module reliable_stream_model #(
     wire tx_response_ready;
     wire tx_response_ack;
     wire tx_response_seq;
+    wire [DATA_WIDTH-1:0] ingress_data;
+    wire ingress_valid;
+    wire ingress_ready;
+    wire replay_s_ready;
+    wire replay_busy;
     wire [FRAME_WIDTH-1:0] credit_s_data;
     wire [FRAME_WIDTH-1:0] credit_m_data;
     wire credit_s_valid;
@@ -64,6 +69,8 @@ module reliable_stream_model #(
     assign rate_profile_gt_s_o = RATE_PROFILE_GT_S[7:0];
     assign active = link_manager_up && profile_supported_o;
     assign link_up_o = active;
+    assign s_ready_o = active && ingress_ready;
+    assign tx_busy_o = replay_busy || ingress_valid;
     assign credit_s_data = {tx_frame_seq, tx_frame_crc, tx_frame_data};
     assign credit_s_valid = tx_frame_valid && active;
     assign tx_frame_ready = credit_s_ready && active;
@@ -84,6 +91,19 @@ module reliable_stream_model #(
         .state(link_state_o)
     );
 
+    // Separate protocol-side queue from the replay register so one next word
+    // can be buffered while the current word waits for ACK/retry completion.
+    elastic_buffer #(.WIDTH(DATA_WIDTH)) ingress (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_data(s_data_i),
+        .s_valid(s_valid_i && active),
+        .s_ready(ingress_ready),
+        .m_data(ingress_data),
+        .m_valid(ingress_valid),
+        .m_ready(replay_s_ready && active)
+    );
+
     generic_replay_tx #(
         .DATA_WIDTH(DATA_WIDTH),
         .MAX_RETRIES(MAX_RETRIES)
@@ -91,9 +111,9 @@ module reliable_stream_model #(
         .clk(clk),
         .rst_n(rst_n),
         .link_active_i(active),
-        .s_data_i(s_data_i),
-        .s_valid_i(s_valid_i),
-        .s_ready_o(s_ready_o),
+        .s_data_i(ingress_data),
+        .s_valid_i(ingress_valid && active),
+        .s_ready_o(replay_s_ready),
         .frame_data_o(tx_frame_data),
         .frame_crc_o(tx_frame_crc),
         .frame_seq_o(tx_frame_seq),
@@ -103,7 +123,7 @@ module reliable_stream_model #(
         .response_ready_o(tx_response_ready),
         .response_ack_i(rx_response_ack),
         .response_seq_i(rx_response_seq),
-        .busy_o(tx_busy_o),
+        .busy_o(replay_busy),
         .failed_o(retry_failed_o),
         .retry_count_o(retry_count_o)
     );

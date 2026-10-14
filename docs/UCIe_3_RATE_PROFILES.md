@@ -47,7 +47,7 @@ The RTL simulation can demonstrate profile selection and functional transaction/
 
 ## Project-defined digital reliability model
 
-The `reliable_stream_model` loopback composes the project-local link manager, a one-entry stop-and-wait TX replay block, generic credit gating, and a one-entry RX CRC checker. Its internal test frame is `{one-bit sequence, 16-bit CRC, payload}`. CRC-16/CCITT-FALSE is calculated over `{sequence, payload}`. A new frame with the expected sequence is delivered once; a valid repeated sequence is ACKed and suppressed; a CRC mismatch is NACKed and raises a one-cycle error indication. Every accepted abstract channel attempt consumes one generic credit. The default `MAX_RETRIES=2` permits two retransmissions following the first attempt. Exhaustion is sticky until reset. The test-only `corrupt_crc_i` flips CRC bit zero at the abstract digital channel boundary.
+The `reliable_stream_model` loopback composes the project-local link manager, a one-word ingress elastic buffer, a one-entry stop-and-wait TX replay block, generic credit gating, and a one-entry RX CRC checker. The ingress queue can hold the next payload while replay waits for a response; the regression checks ordered delivery of two queued payloads after reset. Its internal test frame is `{one-bit sequence, 16-bit CRC, payload}`. CRC-16/CCITT-FALSE is calculated over `{sequence, payload}`. A new frame with the expected sequence is delivered once; a valid repeated sequence is ACKed and suppressed; a CRC mismatch is NACKed and raises a one-cycle error indication. Every accepted abstract channel attempt consumes one generic credit. The default `MAX_RETRIES=2` permits two retransmissions following the first attempt. Exhaustion is sticky until reset. The test-only `corrupt_crc_i` flips CRC bit zero at the abstract digital channel boundary.
 
 Those framing, sequence, CRC coverage, ACK/NACK, credit and retry rules are local prototype decisions. The model's `phy_ready_i` is a single-clock digital backpressure signal; neither it nor `corrupt_crc_i` models electrical PHY behavior. Profile values 48 and 64 leave the digital clock relationship unchanged.
 
@@ -93,7 +93,7 @@ vvp /tmp/ucie-rtl-tests/crc_rtl
 iverilog -g2012 -s tb_generic_crc_rx -o /tmp/ucie-rtl-tests/crc_rx rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv tb/tb_generic_crc_rx.sv
 vvp /tmp/ucie-rtl-tests/crc_rx
 for profile in 48 64 32; do
-  iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o /tmp/ucie-rtl-tests/reliable_${profile} rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
+  iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o /tmp/ucie-rtl-tests/reliable_${profile} rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
   vvp /tmp/ucie-rtl-tests/reliable_${profile}
 done
 ```
@@ -102,7 +102,7 @@ Run generic synthesis and structural checks on the composed reliability model:
 
 ```sh
 for profile in 48 64; do
-  yosys -Q -p "read_verilog -sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv; chparam -set RATE_PROFILE_GT_S ${profile} reliable_stream_model; hierarchy -check -top reliable_stream_model; proc; opt; check; synth -top reliable_stream_model; check; stat"
+  yosys -Q -p "read_verilog -sv rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv; chparam -set RATE_PROFILE_GT_S ${profile} reliable_stream_model; hierarchy -check -top reliable_stream_model; proc; opt; check; synth -top reliable_stream_model; check; stat"
 done
 ```
 
@@ -120,7 +120,7 @@ done
 | --- | --- |
 | RTL source change | Added compile-time 48/64 profile selection, unsupported-rate gating, and link-down buffer retention |
 | RTL simulation | PASS locally with Icarus Verilog 12.0 for both requested profiles, the unsupported-rate case, link-down retention, and the existing smoke/stress benches |
-| RTL reliability simulation | `tb_crc16_ccitt` PASS (CCITT-FALSE check value `0x29B1`); `tb_generic_crc_rx` PASS (duplicate suppressed, response/data retained during link-down, subsequent sequence delivered); `tb_reliable_stream_model` PASS at 48 and 64 profile labels (CRC error/NACK, retry after credit return, PHY-ready stall, output backpressure, link recovery, reset/flush/fresh transfer, retry exhaustion); unsupported profile 32 rejected |
+| RTL reliability simulation | `tb_crc16_ccitt` PASS (CCITT-FALSE check value `0x29B1`); `tb_generic_crc_rx` PASS (duplicate suppressed, response/data retained during link-down, subsequent sequence delivered); `tb_reliable_stream_model` PASS at 48 and 64 profile labels (two-word ingress ordering, CRC error/NACK, retry after credit return, PHY-ready stall, output backpressure, link recovery, reset/flush/fresh transfer, retry exhaustion); unsupported profile 32 rejected |
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
 | Randomized integrated datapath | `tb_stream_random` PASS at both profiles: 228 correctly ordered transactions each, with exact 2-bit credit-model accounting |
@@ -146,6 +146,7 @@ done
 13. Added a project-defined stop-and-wait replay sender, RX CRC checker with duplicate suppression, and a single-clock loopback model connecting replay, generic credits, the project-local link manager, and abstract PHY-ready/error-injection inputs. The model keeps 48/64 as profile metadata and rejects unsupported profile labels.
 14. Added RTL CRC known-answer, RX duplicate-suppression/retention, and profile-parameterized reliability tests. The reliability regression checks corrupted-frame drop/NACK, credit starvation, abstract PHY-ready backpressure, retransmission, RX output backpressure, link recovery retention, reset/flush/fresh transfer, retry exhaustion, and 32 GT/s profile rejection. Local Icarus runs pass at 48 and 64 and reject 32; Yosys 0.33 generic synthesis and structural checks pass for both supported profile labels.
 15. Added the new regressions and both-profile reliability-model synthesis to GitHub Actions. Local full regression passes; hosted verification for this extension is pending.
+16. Added a distinct one-word ingress queue ahead of replay so one transaction can be buffered behind an outstanding retry-controlled transaction. Extended the 48/64 test to prove ordered delivery of two queued payloads; the profile runs pass.
 
 ### Exact local commands for the profile and link-retention runs
 

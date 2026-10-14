@@ -61,14 +61,14 @@ jobs:
       - name: Simulate reliable digital model at 48 and 64 GT/s profiles
         run: |
           for profile in 48 64 32; do
-            iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o simv_reliable rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
+            iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o simv_reliable rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
             vvp simv_reliable
           done
 
       - name: Synthesize reliable digital model at 48 and 64 GT/s profiles
         run: |
           for profile in 48 64; do
-            yosys -Q -p "read_verilog -sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv; chparam -set RATE_PROFILE_GT_S ${profile} reliable_stream_model; hierarchy -check -top reliable_stream_model; proc; opt; check; synth -top reliable_stream_model; check; stat"
+            yosys -Q -p "read_verilog -sv rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv; chparam -set RATE_PROFILE_GT_S ${profile} reliable_stream_model; hierarchy -check -top reliable_stream_model; proc; opt; check; synth -top reliable_stream_model; check; stat"
           done
 
       - name: Run streaming link-down retention regression
