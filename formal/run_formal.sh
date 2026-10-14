@@ -21,6 +21,10 @@ run_proof formal_credit_tx \
     'rtl/credit_tx.sv' \
     'formal/formal_credit_tx.sv' \
     '-seq 4 -tempinduct -timeout 30'
+run_proof formal_stream_adapter \
+    'rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv' \
+    'formal/formal_stream_adapter.sv' \
+    '-seq 4 -tempinduct -timeout 30'
 run_proof formal_link_manager \
     'rtl/link_manager.sv' \
     'formal/formal_link_manager.sv' \
