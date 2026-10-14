@@ -12,6 +12,9 @@ Create independent TX/RX agents, sequencers, monitors, transaction scoreboard, f
 ## Phase 3 — Reliability
 Implement and verify only specification-supported CRC, retry, replay, link recovery and error-reporting behavior. Measure detection latency, recovery time and data integrity.
 
+## Phase 4 — Formal digital checks
+`formal/run_formal.sh` uses Yosys SAT to compare the generic buffer, credit TX, prototype link FSM, and stop-and-wait replay TX against independent reference models. These inductive proofs establish only the project-defined sampled-cycle RTL contracts. The generic CRC RX reference is checked by bounded model checking to depth 8 because the current SAT induction formulation scales poorly; it is not reported as an unbounded proof. `async2sync` converts asynchronous reset cells for clock-sampled proof, so these results do not verify analog reset pulse widths or asynchronous timing.
+
 ### Generic digital model available before specification access
 `generic_replay_tx`, `generic_crc_rx`, and `reliable_stream_model` provide a project-defined stop-and-wait CRC/replay loopback for digital testing. Directed and deterministic randomized tests cover corruption/NACK, duplicate suppression, wrong-sequence response rejection, retry limit, credit starvation, abstract PHY-ready backpressure, output backpressure, and link recovery at the 48 and 64 GT/s profile labels. This is infrastructure evidence only. Its CRC/frame format, sequence convention, credit semantics, retry policy and state behavior must not be treated as UCIe requirements.
 

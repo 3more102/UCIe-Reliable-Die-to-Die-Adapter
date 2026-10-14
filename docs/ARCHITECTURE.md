@@ -13,6 +13,8 @@ This repository implements generic infrastructure and a project-defined digital 
 | Link control | `link_manager` | Project-local DOWN/TRAINING/ACTIVE/RECOVERY states and fault recovery input | These are not normative UCIe state names or timing |
 | PHY boundary | `reliable_stream_model` inputs `phy_ready_i`, `corrupt_crc_i` | Single-clock abstract ready signal and digital CRC-bit fault injection | No lane, serializer/deserializer, PHY clock, electrical channel, timing, or sideband pins |
 
+`formal/run_formal.sh` checks reference-model properties for the generic buffer, generic credit counter, prototype link FSM, generic replay sender, and generic CRC receiver. Four are inductive checks; the receiver is bounded to eight formal cycles. These formal results validate the project-local RTL contracts only and do not establish UCIe conformance.
+
 ## Project-defined reliability model
 
 `reliable_stream_model` connects the blocks above into a digital loopback for testing. The source first enters a one-word ingress elastic buffer, then the replay sender can hold one outstanding payload while the ingress buffer holds the next. A transmitted frame is represented internally as `{sequence_bit, CRC-16, payload}`. The receiver checks the CRC, holds a valid payload until the output accepts it, and acknowledges a repeated valid sequence without delivering it again. A bad CRC produces a one-cycle error indication and a NACK; each attempt consumes one generic credit at the abstract channel handshake. The default retry limit is two retransmissions after the first attempt, after which the sender remains failed until reset. Link loss holds the pending transmission and response state through project-local recovery.

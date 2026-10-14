@@ -9,6 +9,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install RTL simulation and synthesis tools
         run: sudo apt-get update && sudo apt-get install -y iverilog yosys
+      - name: Prove digital block reference contracts
+        run: formal/run_formal.sh
       - name: Run directed smoke
         run: |
           iverilog -g2012 -s tb_elastic_buffer -o simv rtl/elastic_buffer.sv tb/tb_elastic_buffer.sv

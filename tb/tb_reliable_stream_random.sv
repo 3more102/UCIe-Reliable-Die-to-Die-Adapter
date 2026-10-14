@@ -18,7 +18,9 @@ module tb_reliable_stream_random;
     wire m_valid;
     reg m_ready = 0;
     reg credit_return = 0;
-    reg phy_ready = 1;
+    reg phy_ready_random = 1;
+    reg force_phy_stall = 0;
+    wire phy_ready = phy_ready_random && !force_phy_stall;
     reg corrupt_crc = 0;
     wire profile_supported;
     wire [7:0] rate_profile_gt_s;
@@ -35,6 +37,7 @@ module tb_reliable_stream_random;
     integer accepted_count = 0;
     integer delivered_count = 0;
     integer crc_error_count = 0;
+    integer recovery_count = 0;
     integer cycle_count = 0;
     integer timeout;
     integer txn;
@@ -70,7 +73,7 @@ module tb_reliable_stream_random;
     always @(negedge clk) begin
         if (randomize) begin
             lfsr = {lfsr[30:0], lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0]};
-            phy_ready = lfsr[0] | lfsr[2];
+            phy_ready_random = lfsr[0] | lfsr[2];
             m_ready = lfsr[1];
             credit_return = (lfsr[3:0] == 4'hF);
         end
@@ -112,6 +115,31 @@ module tb_reliable_stream_random;
         end
     endtask
 
+    task recover_link_with_pending_frame;
+        begin
+            force_phy_stall = 1;
+            @(negedge clk); fault = 1;
+            @(negedge clk); fault = 0;
+            if (link_up || !tx_busy)
+                $fatal(1, "fault did not hold the accepted transaction in recovery");
+            if (m_valid)
+                $fatal(1, "pending pre-channel frame appeared at the receiver during recovery");
+
+            @(negedge clk); recovery_done = 1;
+            @(negedge clk); recovery_done = 0; training_done = 1;
+            @(negedge clk); training_done = 0;
+            timeout = 0;
+            while (!link_up && timeout < 20) begin
+                @(negedge clk);
+                timeout = timeout + 1;
+            end
+            if (!link_up || !tx_busy)
+                $fatal(1, "pending frame was not retained through link recovery");
+            force_phy_stall = 0;
+            recovery_count = recovery_count + 1;
+        end
+    endtask
+
     task send_transaction(input integer index);
         begin
             @(negedge clk);
@@ -127,6 +155,12 @@ module tb_reliable_stream_random;
                 $fatal(1, "source timeout at transaction %0d", index);
             source_handshake = 0;
             s_valid = 0;
+
+            // Recover while this accepted packet is held before the abstract
+            // channel. Indices are selected deterministically and are not the
+            // CRC-injection indices, so both fault paths remain distinguishable.
+            if (index == 7 || index == 19)
+                recover_link_with_pending_frame();
 
             if ((index % 4) == 1) begin
                 timeout = 0;
@@ -178,11 +212,13 @@ module tb_reliable_stream_random;
         if (crc_error_count != INJECTED_ERRORS)
             $fatal(1, "CRC error count mismatch got=%0d expected=%0d",
                    crc_error_count, INJECTED_ERRORS);
+        if (recovery_count != 2)
+            $fatal(1, "recovery count mismatch got=%0d expected=2", recovery_count);
         if (tx_busy || retry_failed)
             $fatal(1, "sender did not return to idle after randomized traffic");
 
-        $display("PASS tb_reliable_stream_random profile=%0d accepted=%0d delivered=%0d injected_crc_errors=%0d cycles=%0d",
-                 RATE_PROFILE_GT_S, accepted_count, delivered_count, crc_error_count, cycle_count);
+        $display("PASS tb_reliable_stream_random profile=%0d accepted=%0d delivered=%0d injected_crc_errors=%0d recoveries=%0d cycles=%0d",
+                 RATE_PROFILE_GT_S, accepted_count, delivered_count, crc_error_count, recovery_count, cycle_count);
         $finish;
     end
 endmodule

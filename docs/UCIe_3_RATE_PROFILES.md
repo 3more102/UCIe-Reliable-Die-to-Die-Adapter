@@ -112,6 +112,14 @@ for profile in 48 64; do
 done
 ```
 
+Run the formal reference checks for the generic digital blocks:
+
+```sh
+formal/run_formal.sh
+```
+
+The buffer, credit counter, prototype link FSM, and generic replay sender pass Yosys SAT induction. The generic receive checker passes bounded model checking to depth 8. The script uses `async2sync` to model asynchronous-reset state at sampled clock edges; it does not verify reset pulse timing. None of these harnesses checks normative UCIe behavior.
+
 Run generic Yosys elaboration, structural checks, and synthesis for the 48 and 64 GT/s digital profile configurations:
 
 ```sh
@@ -131,10 +139,10 @@ done
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
 | Randomized integrated datapath | `tb_stream_random` PASS at both profiles: 228 correctly ordered transactions each, with exact 2-bit credit-model accounting |
-| Randomized reliability datapath | `tb_reliable_stream_random` PASS at both profile labels: 24 accepted/delivered transactions per run, six detected CRC errors retried successfully, 326 model cycles; deterministic readiness/backpressure and sparse-credit schedule |
+| Randomized reliability datapath | `tb_reliable_stream_random` PASS locally at both profile labels: 24 accepted/delivered transactions, six detected CRC errors retried successfully, two pending-frame link recoveries, 338 model cycles per run; deterministic readiness/backpressure and sparse-credit schedule |
 | Generic synthesis | PASS locally with Yosys 0.33 at 48 and 64 profiles; `hierarchy -check`, pre/post-synthesis `check`, and generic `synth` completed without errors. No target library or timing constraints were used. |
 | Reliability-model synthesis | PASS locally with Yosys 0.33 at 48 and 64 profile labels; hierarchy and structural checks clean, generic synthesis only |
-| Formal verification | Not run |
+| Formal verification | `formal/run_formal.sh` PASS locally with Yosys 0.33: inductive reference checks for the 32-bit elastic buffer, 32-bit generic credit transmitter (4-bit credit state), prototype link manager, and generic replay sender (8-bit data, retry limit 2); generic CRC receiver reference check passed bounded SAT depth 8. Reset is sampled after `async2sync`; no asynchronous timing or UCIe conformance proof. |
 | Hardware measurement / interoperability | Not available |
 
 ## Progress log — 2026-10-14
@@ -155,10 +163,12 @@ done
 14. Added RTL CRC known-answer, RX duplicate-suppression/retention, and profile-parameterized reliability tests. The reliability regression checks corrupted-frame drop/NACK, credit starvation, abstract PHY-ready backpressure, retransmission, RX output backpressure, link recovery retention, reset/flush/fresh transfer, retry exhaustion, and 32 GT/s profile rejection. Local Icarus runs pass at 48 and 64 and reject 32; Yosys 0.33 generic synthesis and structural checks pass for both supported profile labels.
 15. Added the new regressions and both-profile reliability-model synthesis to GitHub Actions. The local full regression passes; hosted verification for this extension is recorded in item 20.
 16. Added a distinct one-word ingress queue ahead of replay so one transaction can be buffered behind an outstanding retry-controlled transaction. Extended the 48/64 test to prove ordered delivery of two queued payloads; the profile runs pass.
-17. Added a deterministic randomized reliability regression for both digital profile labels. Icarus Verilog 12.0 PASS: 24 transactions delivered in order at each profile, six injected CRC faults detected and retried, with randomized PHY-ready, receiver-ready, and credit-return conditions (326 model cycles per run).
+17. Added a deterministic randomized reliability regression for both digital profile labels. Icarus Verilog 12.0 PASS: 24 transactions delivered in order at each profile, six injected CRC faults detected and retried, and two pending-frame link recoveries, with randomized PHY-ready, receiver-ready, and credit-return conditions (338 model cycles per run).
 18. Added a standalone replay-sender regression for wrong-sequence ACKs, response gating during link-down, stable frame contents under backpressure, per-packet retry-count limits, and sticky fail-closed exhaustion. Icarus Verilog 12.0 PASS; CI and traceability entries added. These assertions define project-model behavior only.
 19. Ran the complete RTL smoke workflow locally after these changes: all directed, randomized, stress, profile, reset, recovery, CRC, and replay simulations passed; both `stream_adapter` and `reliable_stream_model` completed Yosys 0.33 generic synthesis and structural checks at 48 and 64; unsupported 32 profile was rejected. Workflow YAML parsing and `git diff --check` passed. No formal, target-library timing, PHY, electrical, hardware, or interoperability evidence was produced.
 20. Uploaded commit `3666557` to `feat/ucie-3-rate-profiles-20261014`; GitHub Actions run #116 completed successfully, including the new replay-sender and randomized reliability tests. This remains digital-only evidence.
+21. Added five Yosys SAT harnesses and a repeatable `formal/run_formal.sh`. Local Yosys 0.33 PASS: four inductive reference checks (buffer, credit TX, prototype link FSM, replay TX) and an RX bounded proof to depth 8. The asynchronous reset is transformed with `async2sync`, and the RX result is explicitly bounded; these are generic digital contracts only. Added the proof run to CI; hosted result pending.
+22. Extended the 48/64 randomized reliability test with two deterministic fault/recovery events while accepted frames are held before the abstract channel. Both profile runs pass with 24 ordered deliveries, six CRC retries, and two recoveries in 338 model cycles.
 
 ### Exact local commands for the profile and link-retention runs
 
