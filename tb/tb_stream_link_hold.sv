@@ -19,8 +19,10 @@ module tb_stream_link_hold;
     @(negedge clk);
     credit_return=0;
     link_up=1; s_valid=1; s_data=64'h1234_5678_9abc_def0;
-    @(negedge clk);
+    #1; // Check ready before the accepting rising edge, not after the handshake.
     if (!s_ready) $fatal(1,"ingress was not accepted");
+    @(posedge clk);
+    @(negedge clk);
     s_valid=0; link_up=0; m_ready=1;
     repeat(3) begin
       @(negedge clk);

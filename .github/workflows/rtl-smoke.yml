@@ -26,3 +26,15 @@ jobs:
       - name: Compile streaming integration
         run: |
           iverilog -g2012 -s stream_adapter -o simv_stream rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv
+
+      - name: Run streaming link-down retention regression
+        run: |
+          iverilog -g2012 -s tb_stream_link_hold -o simv_stream_hold rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_link_hold.sv
+          vvp simv_stream_hold
+
+      - name: Run 48, 64, and unsupported digital profile regressions
+        run: |
+          for profile in 48 64 32; do
+            iverilog -g2012 -Ptb_stream_rate_profile.RATE_PROFILE_GT_S=${profile} -s tb_stream_rate_profile -o simv_rate_profile rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_rate_profile.sv
+            vvp simv_rate_profile
+          done
