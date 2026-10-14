@@ -7,8 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Icarus Verilog
-        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Install RTL simulation and synthesis tools
+        run: sudo apt-get update && sudo apt-get install -y iverilog yosys
       - name: Run directed smoke
         run: |
           iverilog -g2012 -s tb_elastic_buffer -o simv rtl/elastic_buffer.sv tb/tb_elastic_buffer.sv
@@ -24,6 +24,16 @@ jobs:
           iverilog -g2012 -s tb_credit_tx_boundaries -o simv_credit_boundaries rtl/credit_tx.sv tb/tb_credit_tx_boundaries.sv
           vvp simv_credit_boundaries
 
+      - name: Run randomized and stress elastic buffer regressions
+        run: |
+          iverilog -g2012 -s tb_elastic_buffer_random -o simv_elastic_random rtl/elastic_buffer.sv tb/tb_elastic_buffer_random.sv
+          vvp simv_elastic_random
+          iverilog -g2012 -s tb_elastic_buffer_stress -o simv_elastic_stress rtl/elastic_buffer.sv tb/tb_elastic_buffer_stress.sv
+          vvp simv_elastic_stress
+
+      - name: Run generic CRC reference tests
+        run: python3 tb/tb_crc16_reference.py
+
       - name: Run link manager smoke
         run: |
           iverilog -g2012 -s tb_link_manager -o simv_link rtl/link_manager.sv tb/tb_link_manager.sv
@@ -31,6 +41,12 @@ jobs:
       - name: Compile streaming integration
         run: |
           iverilog -g2012 -s stream_adapter -o simv_stream rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv
+
+      - name: Synthesize streaming integration for 48 and 64 GT/s digital profiles
+        run: |
+          for profile in 48 64; do
+            yosys -Q -p "read_verilog -sv rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv; chparam -set RATE_PROFILE_GT_S ${profile} stream_adapter; hierarchy -check -top stream_adapter; proc; opt; check; synth -top stream_adapter; check; stat"
+          done
 
       - name: Run streaming link-down retention regression
         run: |

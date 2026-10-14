@@ -6,6 +6,22 @@ The UCIe Consortium's public [Specifications page](https://www.uciexpress.org/sp
 
 This repository currently contains a generic, single-clock ready/valid streaming demonstrator. `stream_adapter` now has the compile-time parameter `RATE_PROFILE_GT_S`, whose accepted values are 48 and 64. The `configured_rate_gt_s` output reports the selected supported value; unsupported values report zero and prevent datapath handshakes. The default value is 64. The parameter and fail-closed behavior are project-defined integration choices, not UCIe-defined encodings or behavior.
 
+## Public UCIe 3.0 feature mapping
+
+The UCIe Consortium's public overview lists the following UCIe 3.0 features. This is a public-summary mapping, not a clause-by-clause conformance assessment; the page says the full specifications are available by request. No normative encoding, field width, timing, or behavior is inferred from this overview.
+
+| Publicly listed UCIe 3.0 feature | Current repository evidence | Gap | Next action |
+| --- | --- | --- | --- |
+| 48 GT/s and 64 GT/s data rates | Compile-time digital profile selector, per-profile RTL simulation, and generic synthesis | The selector is metadata; there is no PHY, serializer, physical clock, or measured line rate | Obtain and implement the selected PHY contract; add rate-specific timing/physical evidence |
+| Extended sideband channel reaching up to 100 mm | None; no sideband channel or package model | No sideband interface, channel, or reach model | Review normative sideband rules and package assumptions before adding a model |
+| Continuous-transmission protocols through mappings in Raw Mode | None; the ready/valid stream is a project-local datapath | No UCIe protocol mapping, Raw Mode, or continuous-transmission behavior | Implement only from the full specification and selected protocol mapping |
+| Early firmware download using Management Transport Protocol (MTP) | None; no management transport or firmware-download flow | No MTP messages, ordering, or initialization behavior | Review normative MTP and initialization requirements, then add directed tests |
+| Priority sideband packets | None; no sideband scheduler or packet model | No priority encoding, arbitration, or latency behavior | Derive packet and scheduling behavior from the specification |
+| Fast throttle and emergency-shutdown notifications | None; no system-level notification or power-control path | No notification path or receiver response | Define interface boundaries from the specification and test sequencing/fault cases |
+| Open Drain Pins for bidirectional events | None; no pin-level or electrical I/O model | No pad behavior, pull-up, or electrical verification | Add only with PHY/pad requirements and suitable electrical evidence |
+| Runtime recalibration and L2 optimization | None; no PHY calibration or power-management state machine | No calibration, L2, or PHY state behavior | Map normative state transitions and PHY control interfaces before implementation |
+| Backward compatibility with previous UCIe specifications | None; no normative revision mapping or interoperability suite | Compatibility has not been implemented or tested | Select prior revisions and run the applicable conformance/interoperability tests |
+
 ## Capability matrix
 
 | Feature | Current evidence | Gap | Next action |
@@ -16,6 +32,7 @@ This repository currently contains a generic, single-clock ready/valid streaming
 | Ready/valid buffering and link-down retention | Existing elastic buffer and stream regression; the integration now gates buffer consumption while the link/profile is inactive | No UCIe flit framing, link epoch, lane alignment, or protocol-aware recovery | Map these behaviors to the selected normative protocol and test reset/retrain interactions |
 | Digital reset isolation and recovery | `tb_stream_reset` at 48 and 64 profiles checks no handshakes during reset, clears pending data and credits, rejects reset-period traffic, and delivers a fresh post-reset word once | Reset behavior is a project-defined single-clock model choice; PHY and protocol-layer reset sequencing are absent | Define reset sequencing from the selected UCIe revision and integrate it across adapter/PHY boundaries |
 | Integrated digital datapath ordering | `tb_stream_random` sends/receives 228 checked transactions under randomized link state, backpressure, and credit return for each profile | Single-clock model has no PHY clock, flit/lane alignment, or UCIe throughput representation | Retain as infrastructure coverage and extend with normative adapter framing when the full spec is available |
+| Generic RTL synthesis at both profiles | Yosys 0.33 `hierarchy -check`, `check`, and `synth` pass for the integrated adapter at 48 and 64 | Generic synthesis has no target cell library, timing constraints, physical design, or PHY model | Add target-specific constraints and implementation evidence only after a PHY and target technology are selected |
 | Credit gating and recovery | Generic `credit_tx`; boundary bench covers saturation, simultaneous send/return, depletion, refill, stall retention, and consumption; randomized adapter bench checks credit accounting; directed profile test covers no-credit hold and return | Credit unit, initialization, return, saturation, and reset semantics are project-local | Replace or constrain the generic model from normative requirements and add boundary/error assertions |
 | Prototype recovery state handling | `tb_link_manager` checks link-down during recovery and blocks recovery exit while `fault` remains asserted, even if `recovery_done` is high | `link_manager` state names and inputs are project-local and do not model normative UCIe initialization/recovery | Map initialization, recovery, and fault behavior to the selected normative UCIe revision |
 | CRC and retry | Generic CCITT-16 calculator and independent mathematical checks exist on `main` | No UCIe-defined CRC coverage/field mapping or end-to-end replay/retry implementation | Derive CRC/retry behavior from the full specification; keep generic CRC tests labeled as infrastructure only |
@@ -58,7 +75,15 @@ for profile in 48 64; do
 done
 ```
 
-The GitHub Actions smoke workflow is configured to run these tests. The commands were also run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The feature branch has been uploaded. The GitHub combined-status lookup returned no checks for its final commit at the time of this record, so hosted CI remains unconfirmed.
+The GitHub Actions smoke workflow is configured to run these tests and generic synthesis at both supported profiles. The simulation commands were run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The synthesis commands were run locally with Yosys 0.33. The feature branch has been uploaded. The GitHub combined-status lookup returned no checks for its final commit at the time of this record, so hosted CI remains unconfirmed.
+
+Run generic Yosys elaboration, structural checks, and synthesis for the 48 and 64 GT/s digital profile configurations:
+
+```sh
+for profile in 48 64; do
+  yosys -Q -p "read_verilog -sv rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv; chparam -set RATE_PROFILE_GT_S ${profile} stream_adapter; hierarchy -check -top stream_adapter; proc; opt; check; synth -top stream_adapter; check; stat"
+done
+```
 
 ## Verification record
 
@@ -69,7 +94,8 @@ The GitHub Actions smoke workflow is configured to run these tests. The commands
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
 | Randomized integrated datapath | `tb_stream_random` PASS at both profiles: 228 correctly ordered transactions each, with exact 2-bit credit-model accounting |
-| Synthesis / formal | Not run |
+| Generic synthesis | PASS locally with Yosys 0.33 at 48 and 64 profiles; `hierarchy -check`, pre/post-synthesis `check`, and generic `synth` completed without errors. No target library or timing constraints were used. |
+| Formal verification | Not run |
 | Hardware measurement / interoperability | Not available |
 
 ## Progress log — 2026-10-14
@@ -83,6 +109,8 @@ The GitHub Actions smoke workflow is configured to run these tests. The commands
 7. Uploaded the two change sets to `feat/ucie-3-rate-profiles-20261014` using the GitHub integration after shell `git push` could not authenticate. The uploaded branch tree matches the locally tested tree. The combined-status lookup returned no checks; no PR was created.
 8. Gated the stream adapter's active path during reset and added reset isolation/flush/recovery tests. `tb_stream_reset` passes at 48 and 64 GT/s digital profiles with Icarus Verilog 12.0. This reset contract is project-defined and is not a UCIe normative reset sequence.
 9. Added a deterministic randomized stream-adapter scoreboard, output-stall check, link-down check, and independent bounded-credit model. Both profile runs PASS with 228 transactions delivered; this verifies the generic digital datapath only.
+10. Installed Yosys 0.33 from the signed Ubuntu Noble archive and synthesized `stream_adapter` at 48 and 64 profile parameter values. Both runs pass hierarchy and structural checks and complete generic synthesis. Added the same checks to GitHub Actions and brought the existing randomized/stress elastic-buffer and CRC reference tests into that workflow; no hosted result is yet confirmed.
+11. Expanded the public-feature mapping against the UCIe Consortium's current UCIe 3.0 overview, labeling unimplemented features and normative details that remain unresolved.
 
 ### Exact local commands for the profile and link-retention runs
 
