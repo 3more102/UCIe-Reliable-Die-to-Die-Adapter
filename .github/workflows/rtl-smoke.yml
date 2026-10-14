@@ -37,6 +37,13 @@ jobs:
           iverilog -g2012 -s tb_stream_link_hold -o simv_stream_hold rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_link_hold.sv
           vvp simv_stream_hold
 
+      - name: Run reset isolation regression at 48 and 64 GT/s profiles
+        run: |
+          for profile in 48 64; do
+            iverilog -g2012 -Ptb_stream_reset.RATE_PROFILE_GT_S=${profile} -s tb_stream_reset -o simv_stream_reset rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv tb/tb_stream_reset.sv
+            vvp simv_stream_reset
+          done
+
       - name: Run 48, 64, and unsupported digital profile regressions
         run: |
           for profile in 48 64 32; do

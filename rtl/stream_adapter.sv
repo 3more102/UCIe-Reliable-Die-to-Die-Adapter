@@ -32,7 +32,8 @@ module stream_adapter #(
     // only a digital profile label; it is not a serial-rate or PHY model.
     assign rate_profile_supported = RATE_PROFILE_SUPPORTED;
     assign configured_rate_gt_s = RATE_PROFILE_SUPPORTED ? RATE_PROFILE_GT_S : 7'd0;
-    assign active_link = link_up && rate_profile_supported;
+    // Reset suppresses interface handshakes and clears pending adapter state.
+    assign active_link = rst_n && link_up && rate_profile_supported;
 
     elastic_buffer #(.WIDTH(WIDTH)) ingress (
         .clk(clk),.rst_n(rst_n),.s_data(s_data),
