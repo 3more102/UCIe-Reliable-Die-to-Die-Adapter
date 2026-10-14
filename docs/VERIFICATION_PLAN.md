@@ -12,5 +12,8 @@ Create independent TX/RX agents, sequencers, monitors, transaction scoreboard, f
 ## Phase 3 — Reliability
 Implement and verify only specification-supported CRC, retry, replay, link recovery and error-reporting behavior. Measure detection latency, recovery time and data integrity.
 
+### Generic digital model available before specification access
+`generic_replay_tx`, `generic_crc_rx`, and `reliable_stream_model` provide a project-defined stop-and-wait CRC/replay loopback for digital testing. Its tests cover corruption/NACK, duplicate suppression, retry limit, credit starvation, abstract PHY-ready backpressure, output backpressure, and link recovery at the 48 and 64 GT/s profile labels. This is infrastructure evidence only. Its CRC/frame format, sequence convention, credit semantics, retry policy and state behavior must not be treated as UCIe requirements.
+
 ## Exit criteria
 All required assertions pass, no scoreboard mismatches, target coverage met, and documented known limitations. No UCIe compliance claim without normative conformance and interoperability evidence.

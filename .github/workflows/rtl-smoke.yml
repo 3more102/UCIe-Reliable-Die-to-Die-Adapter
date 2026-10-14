@@ -34,6 +34,16 @@ jobs:
       - name: Run generic CRC reference tests
         run: python3 tb/tb_crc16_reference.py
 
+      - name: Run RTL CRC known-answer test
+        run: |
+          iverilog -g2012 -s tb_crc16_ccitt -o simv_crc rtl/crc16_ccitt.sv tb/tb_crc16_ccitt.sv
+          vvp simv_crc
+
+      - name: Run generic receive integrity and duplicate suppression regression
+        run: |
+          iverilog -g2012 -s tb_generic_crc_rx -o simv_crc_rx rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv tb/tb_generic_crc_rx.sv
+          vvp simv_crc_rx
+
       - name: Run link manager smoke
         run: |
           iverilog -g2012 -s tb_link_manager -o simv_link rtl/link_manager.sv tb/tb_link_manager.sv
@@ -46,6 +56,19 @@ jobs:
         run: |
           for profile in 48 64; do
             yosys -Q -p "read_verilog -sv rtl/elastic_buffer.sv rtl/credit_tx.sv rtl/stream_adapter.sv; chparam -set RATE_PROFILE_GT_S ${profile} stream_adapter; hierarchy -check -top stream_adapter; proc; opt; check; synth -top stream_adapter; check; stat"
+          done
+
+      - name: Simulate reliable digital model at 48 and 64 GT/s profiles
+        run: |
+          for profile in 48 64 32; do
+            iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o simv_reliable rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
+            vvp simv_reliable
+          done
+
+      - name: Synthesize reliable digital model at 48 and 64 GT/s profiles
+        run: |
+          for profile in 48 64; do
+            yosys -Q -p "read_verilog -sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv; chparam -set RATE_PROFILE_GT_S ${profile} reliable_stream_model; hierarchy -check -top reliable_stream_model; proc; opt; check; synth -top reliable_stream_model; check; stat"
           done
 
       - name: Run streaming link-down retention regression

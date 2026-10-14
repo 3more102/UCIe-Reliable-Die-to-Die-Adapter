@@ -9,6 +9,10 @@
 | INF-005 | Stream interfaces quiesce during reset, pending state clears, and fresh traffic works after reset | tb_stream_reset at 48 and 64 profiles | PASS locally and GitHub Actions run #112 |
 | INF-006 | Integrated adapter preserves transaction ordering and exact generic credit accounting under randomized link/backpressure traffic | tb_stream_random at 48 and 64 profiles | PASS locally and GitHub Actions run #112 |
 | INF-007 | Streaming integration elaborates and synthesizes without structural errors for both supported digital profiles | Yosys 0.33 `hierarchy -check`, `check`, `synth`, `check` at 48 and 64 | PASS locally and GitHub Actions run #112; generic synthesis only |
+| INF-008 | Generic replay sender retries a CRC-rejected packet, holds for credit/backpressure, retains pending data across project-local link recovery, resets cleanly, and fails after its retry limit | `tb_reliable_stream_model` at 48 and 64 profiles | PASS locally with Icarus Verilog 12.0; project-defined protocol only |
+| INF-009 | Generic receiver ACKs but suppresses a duplicate sequence without redelivery | `tb_generic_crc_rx` | PASS locally with Icarus Verilog 12.0; one-bit sequence convention is project-defined |
+| INF-010 | RTL CRC implementation matches the CCITT-FALSE check value for ASCII `123456789` | `tb_crc16_ccitt` | PASS locally with Icarus Verilog 12.0; generic CRC only |
+| INF-011 | Generic reliability model elaborates and synthesizes structurally for both digital profile labels | Yosys 0.33 `hierarchy -check`, `check`, `synth`, `check` at 48 and 64 | PASS locally; generic synthesis only |
 | SPEC-001 | Select official UCIe revision and profile | Specification review | Open |
 | SPEC-002 | Normative flit and sideband encoding | UVM reference model | Open |
 | SPEC-003 | Normative retry, CRC and credit semantics | Fault injection | Open |
