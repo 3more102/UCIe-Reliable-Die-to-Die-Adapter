@@ -14,7 +14,8 @@ module tb_stream_link_hold;
     .credit_return(credit_return),.credits(credits));
   initial begin
     repeat(2) @(negedge clk);
-    rst_n=1;
+    rst_n=1; link_up=1;
+    // This prototype accepts credits only while its link is active.
     credit_return=1;
     @(negedge clk);
     credit_return=0;

@@ -24,6 +24,8 @@ module reliable_stream_model #(
     input  wire                  credit_return_i,
     input  wire                  phy_ready_i,
     input  wire                  corrupt_crc_i,
+    // Test-only digital hook for dropping one abstract channel frame.
+    input  wire                  drop_frame_i,
     // Test-only digital hook for modeling a lost control response.
     input  wire                  drop_response_i,
     output wire                  profile_supported_o,
@@ -82,7 +84,9 @@ module reliable_stream_model #(
     assign credit_s_data = {tx_frame_seq, tx_frame_crc, tx_frame_data};
     assign credit_s_valid = tx_frame_valid && active;
     assign tx_frame_ready = credit_s_ready && active;
-    assign credit_m_ready = phy_ready_i && rx_ready && active;
+    // A dropped frame consumes its channel credit but is not presented to RX.
+    // This models abstract packet loss only; it is not an electrical fault model.
+    assign credit_m_ready = phy_ready_i && (rx_ready || drop_frame_i) && active;
     // Error injection is a digital verification hook placed at the abstract
     // channel boundary; it does not model an electrical fault mechanism.
     assign rx_frame_crc = credit_m_data[DATA_WIDTH+15:DATA_WIDTH] ^
@@ -165,7 +169,7 @@ module reliable_stream_model #(
         .frame_seq_i(credit_m_data[DATA_WIDTH+16]),
         // The digital PHY boundary may hold the beat; do not let the internal
         // receive checker observe it until that abstract channel is ready.
-        .frame_valid_i(credit_m_valid && phy_ready_i),
+        .frame_valid_i(credit_m_valid && phy_ready_i && !drop_frame_i),
         .frame_ready_o(rx_ready),
         .m_data_o(rx_data),
         .m_valid_o(rx_valid),

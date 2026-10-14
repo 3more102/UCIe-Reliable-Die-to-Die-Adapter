@@ -49,5 +49,7 @@ module stream_adapter #(
         .clk(clk),.rst_n(rst_n),.s_data(buffered_data),
         .s_valid(buffered_valid && active_link),.s_ready(tx_ready),
         .m_data(m_data),.m_valid(m_valid),.m_ready(m_ready),
-        .credit_return(credit_return),.credits(credits));
+        // Ignore credit events while reset, link-down, or profile-disabled so
+        // inactive periods cannot add stale credit to the next active link.
+        .credit_return(credit_return && active_link),.credits(credits));
 endmodule

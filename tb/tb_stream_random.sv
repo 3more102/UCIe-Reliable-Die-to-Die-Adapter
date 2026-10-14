@@ -67,7 +67,9 @@ module tb_stream_random #(
                 pending_input = 0;
             end
 
-            case ({credit_return, send_now})
+            // The adapter wrapper ignores returned credits outside an active
+            // link/profile, so the scoreboard applies the same project rule.
+            case ({credit_return && link_up && rst_n && rate_profile_supported, send_now})
                 2'b10: if (model_credits != 2'b11) model_credits = model_credits + 1'b1;
                 2'b01: model_credits = model_credits - 1'b1;
                 default: model_credits = model_credits;

@@ -22,6 +22,7 @@ module tb_reliable_stream_random;
     reg force_phy_stall = 0;
     wire phy_ready = phy_ready_random && !force_phy_stall;
     reg corrupt_crc = 0;
+    reg drop_frame = 0;
     reg drop_response = 0;
     wire profile_supported;
     wire [7:0] rate_profile_gt_s;
@@ -59,6 +60,7 @@ module tb_reliable_stream_random;
         .m_data_o(m_data), .m_valid_o(m_valid), .m_ready_i(m_ready),
         .credit_return_i(credit_return), .phy_ready_i(phy_ready),
         .corrupt_crc_i(corrupt_crc),
+        .drop_frame_i(drop_frame),
         .drop_response_i(drop_response),
         .profile_supported_o(profile_supported),
         .rate_profile_gt_s_o(rate_profile_gt_s), .link_up_o(link_up),

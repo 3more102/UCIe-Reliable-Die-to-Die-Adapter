@@ -16,6 +16,7 @@ module formal_reliable_stream_safety;
     (* anyseq *) reg credit_return;
     (* anyseq *) reg phy_ready;
     (* anyseq *) reg corrupt_crc;
+    (* anyseq *) reg drop_frame;
     (* anyseq *) reg drop_response;
 
     wire s_ready;
@@ -39,7 +40,8 @@ module formal_reliable_stream_safety;
         .s_data_i(s_data), .s_valid_i(s_valid), .s_ready_o(s_ready),
         .m_data_o(m_data), .m_valid_o(m_valid), .m_ready_i(m_ready),
         .credit_return_i(credit_return), .phy_ready_i(phy_ready),
-        .corrupt_crc_i(corrupt_crc), .drop_response_i(drop_response),
+        .corrupt_crc_i(corrupt_crc), .drop_frame_i(drop_frame),
+        .drop_response_i(drop_response),
         .profile_supported_o(), .rate_profile_gt_s_o(), .link_up_o(link_up),
         .link_state_o(), .credits_o(), .tx_busy_o(tx_busy),
         .retry_failed_o(retry_failed), .retry_count_o(), .crc_error_o(),

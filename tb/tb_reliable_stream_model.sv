@@ -20,6 +20,7 @@ module tb_reliable_stream_model;
     reg credit_return = 0;
     reg phy_ready = 1;
     reg corrupt_crc = 0;
+    reg drop_frame = 0;
     reg drop_response = 0;
     wire profile_supported;
     wire [7:0] rate_profile_gt_s;
@@ -60,6 +61,7 @@ module tb_reliable_stream_model;
         .credit_return_i(credit_return),
         .phy_ready_i(phy_ready),
         .corrupt_crc_i(corrupt_crc),
+        .drop_frame_i(drop_frame),
         .drop_response_i(drop_response),
         .profile_supported_o(profile_supported),
         .rate_profile_gt_s_o(rate_profile_gt_s),
@@ -279,6 +281,46 @@ module tb_reliable_stream_model;
         m_ready = 1;
         @(negedge clk); m_ready = 0;
         if (m_valid) $fatal(1, "response-loss replay delivered the payload twice");
+
+        // Drop one accepted abstract channel frame before RX sees it. The
+        // sender must time out, wait for a fresh credit, and deliver once.
+        grant_credit();
+        drop_frame = 1;
+        send_payload(32'hD09F_64A5);
+        timeout = 0;
+        while (!(dut.credit_s_valid && dut.credit_m_ready) && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (!(dut.credit_s_valid && dut.credit_m_ready))
+            $fatal(1, "timed out waiting for frame-loss injection point");
+        @(posedge clk);
+        @(negedge clk);
+        drop_frame = 0;
+        if (m_valid || dut.rx_response_valid || !tx_busy || credits != 0)
+            $fatal(1, "dropped frame reached RX or was not charged a credit");
+        timeout = 0;
+        while (retry_count != 1 && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (retry_count != 1 || m_valid || credits != 0)
+            $fatal(1, "frame-loss timeout did not schedule a credit-gated retry");
+        grant_credit();
+        wait_for_delivery(32'hD09F_64A5);
+        timeout = 0;
+        while (tx_busy && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (tx_busy || !m_valid || m_data !== 32'hD09F_64A5)
+            $fatal(1, "frame-loss retry was not acknowledged exactly once");
+        if (response_timeout_count != 2)
+            $fatal(1, "frame-loss timeout counter mismatch: got %0d expected 2",
+                   response_timeout_count);
+        m_ready = 1;
+        @(negedge clk); m_ready = 0;
+        if (m_valid) $fatal(1, "frame-loss retry delivered the payload twice");
 
         // Drop link while a packet waits for a credit; it must survive recovery.
         send_payload(32'hDEAD_BEEF);

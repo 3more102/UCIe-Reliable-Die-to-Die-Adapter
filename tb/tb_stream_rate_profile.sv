@@ -70,6 +70,16 @@ module tb_stream_rate_profile #(
       if (m_valid || dut.buffered_valid || credits !== 0)
         $fatal(1,"profile %0d GT/s transfer was duplicated or credit not consumed",RATE_PROFILE_GT_S);
 
+      // Credit-return events while the link is down are ignored. This keeps
+      // inactive-link events from creating stale credit for later traffic.
+      link_up=0; credit_return=1;
+      repeat (2) begin
+        @(negedge clk);
+        if (credits !== 0)
+          $fatal(1,"profile %0d GT/s counted credit while link was down",RATE_PROFILE_GT_S);
+      end
+      credit_return=0; link_up=1;
+
       // With no credits, a second word must remain buffered until credit returns.
       s_data=8'h3C; s_valid=1;
       #1;
@@ -97,13 +107,13 @@ module tb_stream_rate_profile #(
     end else begin
       if (rate_profile_supported || configured_rate_gt_s !== 0)
         $fatal(1,"unsupported profile %0d GT/s was accepted",RATE_PROFILE_GT_S);
-      link_up=1; s_valid=1; s_data=8'h5A; m_ready=1;
+      link_up=1; credit_return=1; s_valid=1; s_data=8'h5A; m_ready=1;
       #1;
       if (s_ready || m_valid)
         $fatal(1,"unsupported profile %0d GT/s enabled datapath",RATE_PROFILE_GT_S);
       @(posedge clk);
       @(negedge clk);
-      if (dut.buffered_valid || m_valid)
+      if (dut.buffered_valid || m_valid || credits !== 0)
         $fatal(1,"unsupported profile %0d GT/s captured traffic",RATE_PROFILE_GT_S);
       $display("PASS unsupported profile=%0d GT/s rejected",RATE_PROFILE_GT_S);
     end
