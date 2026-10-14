@@ -82,7 +82,7 @@ for profile in 48 64; do
 done
 ```
 
-The GitHub Actions smoke workflow runs these tests and generic synthesis at both supported profiles. The simulation commands were run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The synthesis commands were run locally with Yosys 0.33. GitHub Actions run #112 for commit `124005a` on the feature branch completed successfully. No pull request was created.
+The GitHub Actions smoke workflow runs these tests and generic synthesis at both supported profiles. The simulation commands were run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The synthesis commands were run locally with Yosys 0.33. GitHub Actions run #112 for commit `124005a` and run #116 for commit `3666557` completed successfully on the feature branch. No pull request was created.
 
 Run the additional generic reliability-model regressions:
 
@@ -153,11 +153,12 @@ done
 12. Uploaded commit `124005a` to `feat/ucie-3-rate-profiles-20261014`; GitHub Actions run #112 completed successfully.
 13. Added a project-defined stop-and-wait replay sender, RX CRC checker with duplicate suppression, and a single-clock loopback model connecting replay, generic credits, the project-local link manager, and abstract PHY-ready/error-injection inputs. The model keeps 48/64 as profile metadata and rejects unsupported profile labels.
 14. Added RTL CRC known-answer, RX duplicate-suppression/retention, and profile-parameterized reliability tests. The reliability regression checks corrupted-frame drop/NACK, credit starvation, abstract PHY-ready backpressure, retransmission, RX output backpressure, link recovery retention, reset/flush/fresh transfer, retry exhaustion, and 32 GT/s profile rejection. Local Icarus runs pass at 48 and 64 and reject 32; Yosys 0.33 generic synthesis and structural checks pass for both supported profile labels.
-15. Added the new regressions and both-profile reliability-model synthesis to GitHub Actions. Local full regression passes; hosted verification for this extension is pending.
+15. Added the new regressions and both-profile reliability-model synthesis to GitHub Actions. The local full regression passes; hosted verification for this extension is recorded in item 20.
 16. Added a distinct one-word ingress queue ahead of replay so one transaction can be buffered behind an outstanding retry-controlled transaction. Extended the 48/64 test to prove ordered delivery of two queued payloads; the profile runs pass.
 17. Added a deterministic randomized reliability regression for both digital profile labels. Icarus Verilog 12.0 PASS: 24 transactions delivered in order at each profile, six injected CRC faults detected and retried, with randomized PHY-ready, receiver-ready, and credit-return conditions (326 model cycles per run).
 18. Added a standalone replay-sender regression for wrong-sequence ACKs, response gating during link-down, stable frame contents under backpressure, per-packet retry-count limits, and sticky fail-closed exhaustion. Icarus Verilog 12.0 PASS; CI and traceability entries added. These assertions define project-model behavior only.
 19. Ran the complete RTL smoke workflow locally after these changes: all directed, randomized, stress, profile, reset, recovery, CRC, and replay simulations passed; both `stream_adapter` and `reliable_stream_model` completed Yosys 0.33 generic synthesis and structural checks at 48 and 64; unsupported 32 profile was rejected. Workflow YAML parsing and `git diff --check` passed. No formal, target-library timing, PHY, electrical, hardware, or interoperability evidence was produced.
+20. Uploaded commit `3666557` to `feat/ucie-3-rate-profiles-20261014`; GitHub Actions run #116 completed successfully, including the new replay-sender and randomized reliability tests. This remains digital-only evidence.
 
 ### Exact local commands for the profile and link-retention runs
 

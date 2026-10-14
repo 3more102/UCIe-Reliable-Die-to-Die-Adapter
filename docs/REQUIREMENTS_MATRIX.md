@@ -13,8 +13,8 @@
 | INF-009 | Generic receiver ACKs but suppresses a duplicate sequence without redelivery | `tb_generic_crc_rx` | PASS locally with Icarus Verilog 12.0; one-bit sequence convention is project-defined |
 | INF-010 | RTL CRC implementation matches the CCITT-FALSE check value for ASCII `123456789` | `tb_crc16_ccitt` | PASS locally with Icarus Verilog 12.0; generic CRC only |
 | INF-011 | Generic reliability model elaborates and synthesizes structurally for both digital profile labels | Yosys 0.33 `hierarchy -check`, `check`, `synth`, `check` at 48 and 64 | PASS locally; generic synthesis only |
-| INF-012 | Randomized reliability traffic preserves order through sparse credits, PHY/output stalls, and injected CRC faults | `tb_reliable_stream_random` at 48 and 64 profiles | PASS locally with Icarus Verilog 12.0: 24 accepted/delivered and 6 CRC errors recovered per profile; project-defined model |
-| INF-013 | Replay sender ignores wrong-sequence responses, gates responses while link inactive, holds replay data under backpressure, counts retries to the configured limit, and fails closed | `tb_generic_replay_tx` | PASS locally with Icarus Verilog 12.0; response sequence and retry policy are project-defined |
+| INF-012 | Randomized reliability traffic preserves order through sparse credits, PHY/output stalls, and injected CRC faults | `tb_reliable_stream_random` at 48 and 64 profiles | PASS locally with Icarus Verilog 12.0 and GitHub Actions run #116: 24 accepted/delivered and 6 CRC errors recovered per profile; project-defined model |
+| INF-013 | Replay sender ignores wrong-sequence responses, gates responses while link inactive, holds replay data under backpressure, counts retries to the configured limit, and fails closed | `tb_generic_replay_tx` | PASS locally with Icarus Verilog 12.0 and GitHub Actions run #116; response sequence and retry policy are project-defined |
 | SPEC-001 | Select official UCIe revision and profile | Specification review | Open |
 | SPEC-002 | Normative flit and sideband encoding | UVM reference model | Open |
 | SPEC-003 | Normative retry, CRC and credit semantics | Fault injection | Open |
