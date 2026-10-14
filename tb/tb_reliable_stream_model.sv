@@ -185,6 +185,44 @@ module tb_reliable_stream_model;
         @(negedge clk); m_ready = 0;
         if (m_valid) $fatal(1, "receive buffer did not release after handshake");
 
+        // Fault on the same sampled edge that the abstract channel accepts a
+        // frame. The receiver stores its ACK while the link goes down; the
+        // transmitter must complete from that retained response after recovery.
+        grant_credit();
+        send_payload(32'h1357_9BDF);
+        timeout = 0;
+        while (!(dut.credit_s_valid && dut.credit_m_ready) && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (!(dut.credit_s_valid && dut.credit_m_ready))
+            $fatal(1, "timed out waiting for in-flight frame handshake");
+        fault = 1;
+        @(negedge clk); fault = 0;
+        if (link_up || !tx_busy || !m_valid || m_data !== 32'h1357_9BDF ||
+            !dut.rx_integrity.response_valid_q)
+            $fatal(1, "frame/ACK state was not retained at the link-fault boundary");
+        repeat (2) begin
+            @(negedge clk);
+            if (link_up || !tx_busy || !m_valid || m_data !== 32'h1357_9BDF)
+                $fatal(1, "in-flight frame state changed during recovery");
+        end
+        @(negedge clk); recovery_done = 1;
+        @(negedge clk); recovery_done = 0; training_done = 1;
+        @(negedge clk); training_done = 0;
+        if (!link_up) $fatal(1, "link did not recover after in-flight frame fault");
+        timeout = 0;
+        while (tx_busy && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (tx_busy || !m_valid || m_data !== 32'h1357_9BDF)
+            $fatal(1, "retained ACK did not retire replay without losing receive data");
+        m_ready = 1;
+        @(posedge clk);
+        @(negedge clk); m_ready = 0;
+        if (m_valid) $fatal(1, "in-flight recovered frame was delivered more than once");
+
         // Drop link while a packet waits for a credit; it must survive recovery.
         send_payload(32'hDEAD_BEEF);
         @(negedge clk); fault = 1;

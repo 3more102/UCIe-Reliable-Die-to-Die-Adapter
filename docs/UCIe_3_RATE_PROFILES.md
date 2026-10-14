@@ -134,7 +134,7 @@ done
 | --- | --- |
 | RTL source change | Added compile-time 48/64 profile selection, unsupported-rate gating, and link-down buffer retention |
 | RTL simulation | PASS locally with Icarus Verilog 12.0 for both requested profiles, the unsupported-rate case, link-down retention, and the existing smoke/stress benches |
-| RTL reliability simulation | `tb_crc16_ccitt` PASS (CCITT-FALSE check value `0x29B1`); `tb_generic_crc_rx` PASS (duplicate suppressed, response/data retained during link-down, subsequent sequence delivered); `tb_reliable_stream_model` PASS at 48 and 64 profile labels (two-word ingress ordering, CRC error/NACK, retry after credit return, PHY-ready stall, output backpressure, link recovery, reset/flush/fresh transfer, retry exhaustion); unsupported profile 32 rejected |
+| RTL reliability simulation | `tb_crc16_ccitt` PASS (CCITT-FALSE check value `0x29B1`); `tb_generic_crc_rx` PASS (duplicate suppressed, response/data retained during link-down, subsequent sequence delivered); `tb_reliable_stream_model` PASS at 48 and 64 profile labels (two-word ingress ordering, CRC error/NACK, retry after credit return, PHY-ready stall, output backpressure, reset/flush/fresh transfer, retry exhaustion, link fault before channel acceptance, and fault coincident with frame acceptance while the RX ACK is retained); unsupported profile 32 rejected |
 | Replay sender unit regression | `tb_generic_replay_tx` PASS locally with Icarus Verilog 12.0: wrong-sequence ACK ignored, responses gated while link inactive, frame content stable under replay backpressure, per-packet retry count boundaries checked, and retry exhaustion sticky until reset |
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
@@ -169,6 +169,7 @@ done
 20. Uploaded commit `3666557` to `feat/ucie-3-rate-profiles-20261014`; GitHub Actions run #116 completed successfully, including the new replay-sender and randomized reliability tests. This remains digital-only evidence.
 21. Added five Yosys SAT harnesses and a repeatable `formal/run_formal.sh`. Local Yosys 0.33 PASS: four inductive reference checks (buffer, credit TX, prototype link FSM, replay TX) and an RX bounded proof to depth 8. The asynchronous reset is transformed with `async2sync`, and the RX result is explicitly bounded; these are generic digital contracts only. Added the proof run to CI; hosted result pending.
 22. Extended the 48/64 randomized reliability test with two deterministic fault/recovery events while accepted frames are held before the abstract channel. Both profile runs pass with 24 ordered deliveries, six CRC retries, and two recoveries in 338 model cycles.
+23. Extended `tb_reliable_stream_model` at both supported profile labels with a fault on the sampled abstract-channel frame-acceptance edge. The regression proves the RX response and user payload remain pending while link-down, the ACK retires replay after recovery, and the payload is delivered once; 48, 64, and unsupported 32 profile runs pass with Icarus Verilog 12.0.
 
 ### Exact local commands for the profile and link-retention runs
 
