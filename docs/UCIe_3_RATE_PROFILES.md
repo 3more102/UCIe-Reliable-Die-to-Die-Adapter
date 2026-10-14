@@ -75,7 +75,7 @@ for profile in 48 64; do
 done
 ```
 
-The GitHub Actions smoke workflow is configured to run these tests and generic synthesis at both supported profiles. The simulation commands were run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The synthesis commands were run locally with Yosys 0.33. The feature branch has been uploaded. The GitHub combined-status lookup returned no checks for its final commit at the time of this record, so hosted CI remains unconfirmed.
+The GitHub Actions smoke workflow runs these tests and generic synthesis at both supported profiles. The simulation commands were run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The synthesis commands were run locally with Yosys 0.33. GitHub Actions run #112 for commit `124005a` on the feature branch completed successfully. No pull request was created.
 
 Run generic Yosys elaboration, structural checks, and synthesis for the 48 and 64 GT/s digital profile configurations:
 
@@ -109,8 +109,9 @@ done
 7. Uploaded the two change sets to `feat/ucie-3-rate-profiles-20261014` using the GitHub integration after shell `git push` could not authenticate. The uploaded branch tree matches the locally tested tree. The combined-status lookup returned no checks; no PR was created.
 8. Gated the stream adapter's active path during reset and added reset isolation/flush/recovery tests. `tb_stream_reset` passes at 48 and 64 GT/s digital profiles with Icarus Verilog 12.0. This reset contract is project-defined and is not a UCIe normative reset sequence.
 9. Added a deterministic randomized stream-adapter scoreboard, output-stall check, link-down check, and independent bounded-credit model. Both profile runs PASS with 228 transactions delivered; this verifies the generic digital datapath only.
-10. Installed Yosys 0.33 from the signed Ubuntu Noble archive and synthesized `stream_adapter` at 48 and 64 profile parameter values. Both runs pass hierarchy and structural checks and complete generic synthesis. Added the same checks to GitHub Actions and brought the existing randomized/stress elastic-buffer and CRC reference tests into that workflow; no hosted result is yet confirmed.
+10. Installed Yosys 0.33 from the signed Ubuntu Noble archive and synthesized `stream_adapter` at 48 and 64 profile parameter values. Both runs pass hierarchy and structural checks and complete generic synthesis. Added the same checks to GitHub Actions and brought the existing randomized/stress elastic-buffer and CRC reference tests into that workflow.
 11. Expanded the public-feature mapping against the UCIe Consortium's current UCIe 3.0 overview, labeling unimplemented features and normative details that remain unresolved.
+12. Uploaded commit `124005a` to `feat/ucie-3-rate-profiles-20261014`; GitHub Actions run #112 completed successfully.
 
 ### Exact local commands for the profile and link-retention runs
 
