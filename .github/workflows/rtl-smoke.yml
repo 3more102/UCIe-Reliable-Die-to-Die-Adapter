@@ -19,6 +19,11 @@ jobs:
           iverilog -g2012 -s tb_credit_tx -o simv_credit rtl/credit_tx.sv tb/tb_credit_tx.sv
           vvp simv_credit
 
+      - name: Run credit TX boundary regression
+        run: |
+          iverilog -g2012 -s tb_credit_tx_boundaries -o simv_credit_boundaries rtl/credit_tx.sv tb/tb_credit_tx_boundaries.sv
+          vvp simv_credit_boundaries
+
       - name: Run link manager smoke
         run: |
           iverilog -g2012 -s tb_link_manager -o simv_link rtl/link_manager.sv tb/tb_link_manager.sv

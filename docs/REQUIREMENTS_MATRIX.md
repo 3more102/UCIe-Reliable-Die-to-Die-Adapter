@@ -4,7 +4,8 @@
 | --- | --- | --- | --- |
 | INF-001 | Elastic buffer holds data while stalled | tb_elastic_buffer | PASS locally; CI unconfirmed |
 | INF-002 | No credit means no TX transfer | tb_credit_tx | PASS locally; CI unconfirmed |
-| INF-003 | Link state deasserts up during fault recovery | tb_link_manager | PASS locally; CI unconfirmed |
+| INF-003 | Link state deasserts up during fault recovery and recovery does not restart training while the fault remains asserted | tb_link_manager | PASS locally; CI unconfirmed |
+| INF-004 | Generic credit counter saturates, does not underflow, and preserves stalled data | tb_credit_tx_boundaries | PASS locally; CI unconfirmed |
 | SPEC-001 | Select official UCIe revision and profile | Specification review | Open |
 | SPEC-002 | Normative flit and sideband encoding | UVM reference model | Open |
 | SPEC-003 | Normative retry, CRC and credit semantics | Fault injection | Open |
