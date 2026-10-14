@@ -44,6 +44,11 @@ jobs:
           iverilog -g2012 -s tb_generic_crc_rx -o simv_crc_rx rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv tb/tb_generic_crc_rx.sv
           vvp simv_crc_rx
 
+      - name: Run generic replay sender response and retry boundary regression
+        run: |
+          iverilog -g2012 -s tb_generic_replay_tx -o simv_replay_tx rtl/crc16_ccitt.sv rtl/generic_replay_tx.sv tb/tb_generic_replay_tx.sv
+          vvp simv_replay_tx
+
       - name: Run link manager smoke
         run: |
           iverilog -g2012 -s tb_link_manager -o simv_link rtl/link_manager.sv tb/tb_link_manager.sv
@@ -63,6 +68,13 @@ jobs:
           for profile in 48 64 32; do
             iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o simv_reliable rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
             vvp simv_reliable
+          done
+
+      - name: Run deterministic randomized reliability regression
+        run: |
+          for profile in 48 64; do
+            iverilog -g2012 -Ptb_reliable_stream_random.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_random -o simv_reliable_random rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_random.sv
+            vvp simv_reliable_random
           done
 
       - name: Synthesize reliable digital model at 48 and 64 GT/s profiles

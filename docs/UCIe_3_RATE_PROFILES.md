@@ -35,7 +35,7 @@ The UCIe Consortium's public overview lists the following UCIe 3.0 features. Thi
 | Generic RTL synthesis at both profiles | Yosys 0.33 `hierarchy -check`, `check`, and `synth` pass for the integrated adapter at 48 and 64 | Generic synthesis has no target cell library, timing constraints, physical design, or PHY model | Add target-specific constraints and implementation evidence only after a PHY and target technology are selected |
 | Credit gating and recovery | Generic `credit_tx`; boundary bench covers saturation, simultaneous send/return, depletion, refill, stall retention, and consumption; randomized adapter bench checks credit accounting; directed profile test covers no-credit hold and return | Credit unit, initialization, return, saturation, and reset semantics are project-local | Replace or constrain the generic model from normative requirements and add boundary/error assertions |
 | Prototype recovery state handling | `tb_link_manager` checks link-down during recovery and blocks recovery exit while `fault` remains asserted, even if `recovery_done` is high | `link_manager` state names and inputs are project-local and do not model normative UCIe initialization/recovery | Map initialization, recovery, and fault behavior to the selected normative UCIe revision |
-| CRC and retry | Generic CCITT-16 calculator, RTL check-value test, one-entry RX CRC checker, one-bit duplicate suppression, and stop-and-wait replay sender; corruption/NACK/retry-limit scenarios run at both profile labels | The project's CRC coverage, sequence, response, credit and retry rules are not UCIe-defined; no normative field mapping exists | Derive CRC/retry behavior from the full specification; keep generic CRC tests labeled as infrastructure only |
+| CRC and retry | Generic CCITT-16 calculator, RTL check-value test, one-entry RX CRC checker, duplicate suppression, and stop-and-wait replay sender; directed and deterministic randomized corruption/NACK/retry-limit scenarios run at both profile labels; unit test rejects wrong-sequence ACKs | The project's CRC coverage, sequence, response, credit and retry rules are not UCIe-defined; no normative field mapping exists | Derive CRC/retry behavior from the full specification; keep generic CRC tests labeled as infrastructure only |
 | PHY and electrical link at 48/64 GT/s | No PHY RTL, electrical model, timing constraints, lab measurements, or interoperability report in this repository | No evidence for a physical lane rate or electrical performance | Add suitable PHY, timing, SI/PI, and hardware/interoperability evidence; otherwise report this as unverified |
 | UCIe 3.0 conformance | No complete normative requirement mapping or conformance suite | The repository explicitly remains a generic prototype | Build a clause-to-RTL/test matrix from the complete specification and run the applicable conformance process |
 
@@ -92,9 +92,15 @@ iverilog -g2012 -s tb_crc16_ccitt -o /tmp/ucie-rtl-tests/crc_rtl rtl/crc16_ccitt
 vvp /tmp/ucie-rtl-tests/crc_rtl
 iverilog -g2012 -s tb_generic_crc_rx -o /tmp/ucie-rtl-tests/crc_rx rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv tb/tb_generic_crc_rx.sv
 vvp /tmp/ucie-rtl-tests/crc_rx
+iverilog -g2012 -s tb_generic_replay_tx -o /tmp/ucie-rtl-tests/replay_tx rtl/crc16_ccitt.sv rtl/generic_replay_tx.sv tb/tb_generic_replay_tx.sv
+vvp /tmp/ucie-rtl-tests/replay_tx
 for profile in 48 64 32; do
   iverilog -g2012 -Ptb_reliable_stream_model.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_model -o /tmp/ucie-rtl-tests/reliable_${profile} rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_model.sv
   vvp /tmp/ucie-rtl-tests/reliable_${profile}
+done
+for profile in 48 64; do
+  iverilog -g2012 -Ptb_reliable_stream_random.RATE_PROFILE_GT_S=${profile} -s tb_reliable_stream_random -o /tmp/ucie-rtl-tests/reliable_random_${profile} rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv tb/tb_reliable_stream_random.sv
+  vvp /tmp/ucie-rtl-tests/reliable_random_${profile}
 done
 ```
 
@@ -121,9 +127,11 @@ done
 | RTL source change | Added compile-time 48/64 profile selection, unsupported-rate gating, and link-down buffer retention |
 | RTL simulation | PASS locally with Icarus Verilog 12.0 for both requested profiles, the unsupported-rate case, link-down retention, and the existing smoke/stress benches |
 | RTL reliability simulation | `tb_crc16_ccitt` PASS (CCITT-FALSE check value `0x29B1`); `tb_generic_crc_rx` PASS (duplicate suppressed, response/data retained during link-down, subsequent sequence delivered); `tb_reliable_stream_model` PASS at 48 and 64 profile labels (two-word ingress ordering, CRC error/NACK, retry after credit return, PHY-ready stall, output backpressure, link recovery, reset/flush/fresh transfer, retry exhaustion); unsupported profile 32 rejected |
+| Replay sender unit regression | `tb_generic_replay_tx` PASS locally with Icarus Verilog 12.0: wrong-sequence ACK ignored, responses gated while link inactive, frame content stable under replay backpressure, per-packet retry count boundaries checked, and retry exhaustion sticky until reset |
 | Recovery/credit boundary regression | `tb_link_manager` recovery fault-priority case and `tb_credit_tx_boundaries` PASS locally with Icarus Verilog 12.0 |
 | Reset isolation regression | `tb_stream_reset` PASS locally for both 48 and 64 digital profiles; no handshakes during reset, pending-state flush, and fresh post-reset transfer verified |
 | Randomized integrated datapath | `tb_stream_random` PASS at both profiles: 228 correctly ordered transactions each, with exact 2-bit credit-model accounting |
+| Randomized reliability datapath | `tb_reliable_stream_random` PASS at both profile labels: 24 accepted/delivered transactions per run, six detected CRC errors retried successfully, 326 model cycles; deterministic readiness/backpressure and sparse-credit schedule |
 | Generic synthesis | PASS locally with Yosys 0.33 at 48 and 64 profiles; `hierarchy -check`, pre/post-synthesis `check`, and generic `synth` completed without errors. No target library or timing constraints were used. |
 | Reliability-model synthesis | PASS locally with Yosys 0.33 at 48 and 64 profile labels; hierarchy and structural checks clean, generic synthesis only |
 | Formal verification | Not run |
@@ -147,6 +155,9 @@ done
 14. Added RTL CRC known-answer, RX duplicate-suppression/retention, and profile-parameterized reliability tests. The reliability regression checks corrupted-frame drop/NACK, credit starvation, abstract PHY-ready backpressure, retransmission, RX output backpressure, link recovery retention, reset/flush/fresh transfer, retry exhaustion, and 32 GT/s profile rejection. Local Icarus runs pass at 48 and 64 and reject 32; Yosys 0.33 generic synthesis and structural checks pass for both supported profile labels.
 15. Added the new regressions and both-profile reliability-model synthesis to GitHub Actions. Local full regression passes; hosted verification for this extension is pending.
 16. Added a distinct one-word ingress queue ahead of replay so one transaction can be buffered behind an outstanding retry-controlled transaction. Extended the 48/64 test to prove ordered delivery of two queued payloads; the profile runs pass.
+17. Added a deterministic randomized reliability regression for both digital profile labels. Icarus Verilog 12.0 PASS: 24 transactions delivered in order at each profile, six injected CRC faults detected and retried, with randomized PHY-ready, receiver-ready, and credit-return conditions (326 model cycles per run).
+18. Added a standalone replay-sender regression for wrong-sequence ACKs, response gating during link-down, stable frame contents under backpressure, per-packet retry-count limits, and sticky fail-closed exhaustion. Icarus Verilog 12.0 PASS; CI and traceability entries added. These assertions define project-model behavior only.
+19. Ran the complete RTL smoke workflow locally after these changes: all directed, randomized, stress, profile, reset, recovery, CRC, and replay simulations passed; both `stream_adapter` and `reliable_stream_model` completed Yosys 0.33 generic synthesis and structural checks at 48 and 64; unsupported 32 profile was rejected. Workflow YAML parsing and `git diff --check` passed. No formal, target-library timing, PHY, electrical, hardware, or interoperability evidence was produced.
 
 ### Exact local commands for the profile and link-retention runs
 
