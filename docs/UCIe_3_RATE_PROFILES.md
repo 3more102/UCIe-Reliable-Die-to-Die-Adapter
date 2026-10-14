@@ -46,7 +46,7 @@ iverilog -g2012 -s tb_credit_tx_boundaries -o simv_credit_boundaries rtl/credit_
 vvp simv_credit_boundaries
 ```
 
-The GitHub Actions smoke workflow is configured to run these commands. The commands were also run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. No GitHub Actions run was triggered for this local-only branch.
+The GitHub Actions smoke workflow is configured to run these tests. The commands were also run locally with Icarus Verilog 12.0; local executable files were placed under `/tmp/ucie-rtl-tests` to keep the checkout clean. The feature branch has been uploaded. The GitHub combined-status lookup returned no checks for its final commit at the time of this record, so hosted CI remains unconfirmed.
 
 ## Verification record
 
@@ -66,6 +66,7 @@ The GitHub Actions smoke workflow is configured to run these commands. The comma
 4. RTL results: `tb_stream_rate_profile` at **48 GT/s PASS**, **64 GT/s PASS**, and unsupported **32 GT/s PASS (rejected)**; `tb_stream_link_hold` **PASS**; `tb_elastic_buffer` **PASS**; `tb_credit_tx` **PASS**; `tb_link_manager` **PASS**; `tb_elastic_buffer_random` **PASS (600 transactions)**; `tb_elastic_buffer_stress` **PASS (300 sent/received)**; integrated `stream_adapter` compile **PASS**.
 5. Python/reference and static results: `python3 tb/tb_crc16_reference.py` **3 passed**; `git diff --check` **passed**. Synthesis, formal verification, hardware measurement, and interoperability remain unperformed.
 6. Added a fault-priority condition to the project-local recovery FSM and extended its test to hold `fault` high through a completed-recovery indication. Added a directed generic credit boundary bench and CI step. The preconfigured package mirror returned HTTP 502; installed Icarus Verilog 12.0 from the signed Ubuntu Noble archive using a temporary package source. Both new benches PASS locally.
+7. Uploaded the two change sets to `feat/ucie-3-rate-profiles-20261014` using the GitHub integration after shell `git push` could not authenticate. The uploaded branch tree matches the locally tested tree. The combined-status lookup returned no checks; no PR was created.
 
 ### Exact local commands for the profile and link-retention runs
 
