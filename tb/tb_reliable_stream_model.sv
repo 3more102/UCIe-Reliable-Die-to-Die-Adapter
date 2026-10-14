@@ -141,8 +141,12 @@ module tb_reliable_stream_model;
         rst_n = 1;
         start_link();
 
-        if (rate_profile_gt_s !== RATE_PROFILE_GT_S[7:0])
-            $fatal(1, "profile metadata mismatch: got %0d expected %0d", rate_profile_gt_s, RATE_PROFILE_GT_S);
+        if ((RATE_PROFILE_GT_S == 48 || RATE_PROFILE_GT_S == 64) &&
+            rate_profile_gt_s !== RATE_PROFILE_GT_S[7:0])
+            $fatal(1, "supported profile metadata mismatch: got %0d expected %0d",
+                   rate_profile_gt_s, RATE_PROFILE_GT_S);
+        if (!(RATE_PROFILE_GT_S == 48 || RATE_PROFILE_GT_S == 64) && rate_profile_gt_s !== 0)
+            $fatal(1, "unsupported profile must report effective profile zero, got %0d", rate_profile_gt_s);
 
         if (!(RATE_PROFILE_GT_S == 48 || RATE_PROFILE_GT_S == 64)) begin
             if (profile_supported || s_ready)

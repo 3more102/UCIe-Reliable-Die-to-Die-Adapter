@@ -22,10 +22,11 @@
 | SPEC-003 | Normative retry, CRC and credit semantics | Fault injection | Open |
 | SPEC-004 | PHY electrical and interoperability qualification | External evidence | Open |
 | FORMAL-001 | Buffer, credit, project link FSM, and generic TX replay outputs/events match independent reference state under arbitrary sampled inputs, including timeout and link-down pause | `formal/run_formal.sh` with Yosys 0.33; inductive SAT checks | PASS locally and GitHub Actions run #121; sampled-clock project contracts only |
-| FORMAL-002 | Generic RX outputs/state match a reference for all input sequences through 32 formal cycles | `formal/run_formal.sh` with Yosys 0.33; bounded SAT check | PASS locally to depth 32; hosted runs #121/#122 passed depth 8, updated depth pending run #123; not an unbounded proof or UCIe normative behavior |
+| FORMAL-002 | Generic RX outputs/state match a reference for all input sequences through 32 formal cycles | `formal/run_formal.sh` with Yosys 0.33; bounded SAT check | PASS locally and GitHub Actions run #123 to depth 32; not an unbounded proof or UCIe normative behavior |
 | FORMAL-003 | Composed reliability loopback never delivers data absent an accepted source word and preserves accepted-to-delivered ordering under arbitrary sampled faults and backpressure | `formal_reliable_stream_safety` with Yosys 0.33; bounded SAT check | PASS locally and hosted run #122 to depth 16; bounded safety only, not liveness |
 | PROFILE-001 | Configure the digital model for 48 GT/s or 64 GT/s | `tb_stream_rate_profile` compiled once per rate; Yosys elaboration and synthesis at each rate | PASS locally and GitHub Actions run #112 at both rates; digital model only |
 | PROFILE-002 | Reject unsupported configured rates and retain data while link is down | `tb_stream_rate_profile` (32 GT/s case) and `tb_stream_link_hold` | PASS locally and GitHub Actions run #112; unsupported profile rejected and pending word preserved |
+| PROFILE-003 | Stream and reliability layers report the same effective 48/64 profile, exercise the same payload datapath, and both fail closed for unsupported rates | `tb_profile_consistency` at 48, 64, and 32 | PASS locally with Icarus Verilog 12.0; hosted run #124 pending |
 
 Rate-profile behavior, clock-model limits, capability evidence, and next actions are recorded in [UCIe 3.0 rate profiles](UCIe_3_RATE_PROFILES.md). This matrix does not assert UCIe compliance or physical line-rate operation.
 

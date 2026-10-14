@@ -72,6 +72,13 @@ jobs:
             vvp simv_reliable
           done
 
+      - name: Check shared profile configuration across digital layers
+        run: |
+          for profile in 48 64 32; do
+            iverilog -g2012 -Ptb_profile_consistency.RATE_PROFILE_GT_S=${profile} -s tb_profile_consistency -o simv_profile_consistency rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/stream_adapter.sv rtl/reliable_stream_model.sv tb/tb_profile_consistency.sv
+            vvp simv_profile_consistency
+          done
+
       - name: Run deterministic randomized reliability regression
         run: |
           for profile in 48 64; do

@@ -74,7 +74,7 @@ module reliable_stream_model #(
     wire timeout_event;
 
     assign profile_supported_o = PROFILE_OK[0];
-    assign rate_profile_gt_s_o = RATE_PROFILE_GT_S[7:0];
+    assign rate_profile_gt_s_o = PROFILE_OK ? RATE_PROFILE_GT_S[7:0] : 8'd0;
     assign active = link_manager_up && profile_supported_o;
     assign link_up_o = active;
     assign s_ready_o = active && ingress_ready;

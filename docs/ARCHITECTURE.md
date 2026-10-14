@@ -6,7 +6,7 @@ This repository implements generic infrastructure and a project-defined digital 
 
 | Layer | RTL | Current behavior and evidence | Boundary / unresolved item |
 | --- | --- | --- | --- |
-| Protocol-facing stream | `stream_adapter`, `elastic_buffer` | Generic ready/valid word buffering; 48/64 profile selection; reset and link-down gating | No UCIe flit format, protocol mapping, or mode selection |
+| Protocol-facing stream | `stream_adapter`, `elastic_buffer` | Generic ready/valid word buffering; shared 48/64 profile selection with the reliability model; effective profile is zero when unsupported; reset and link-down gating | No UCIe flit format, protocol mapping, or mode selection |
 | TX reliability | `elastic_buffer`, `generic_replay_tx`, `crc16_ccitt` | One queued ingress word plus one outstanding replay word; one-bit sequence; CCITT-FALSE CRC over sequence plus payload; retries on NACK or response timeout | `RESPONSE_TIMEOUT_CYCLES` counts active-link model clocks, defaults to 16, pauses while link-down, and is project-defined; no UCIe retry/timing mapping |
 | Flow control | `credit_tx` | Bounded generic credit counter; one credit per accepted abstract channel attempt | Credit units, initialization, return rules, and reset semantics are unresolved normative work |
 | RX reliability | `generic_crc_rx` | CRC validation, one-entry receive holding register, ACK/NACK response, duplicate suppression | No UCIe CRC coverage, sequence field, response encoding, or replay rules |
