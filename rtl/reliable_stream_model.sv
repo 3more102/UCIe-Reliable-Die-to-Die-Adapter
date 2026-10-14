@@ -5,6 +5,7 @@ module reliable_stream_model #(
     parameter integer DATA_WIDTH = 64,
     parameter integer CREDIT_WIDTH = 8,
     parameter integer MAX_RETRIES = 2,
+    parameter integer RESPONSE_TIMEOUT_CYCLES = 16,
     parameter integer RATE_PROFILE_GT_S = 64
 ) (
     input  wire                  clk,
@@ -22,6 +23,8 @@ module reliable_stream_model #(
     input  wire                  credit_return_i,
     input  wire                  phy_ready_i,
     input  wire                  corrupt_crc_i,
+    // Test-only digital hook for modeling a lost control response.
+    input  wire                  drop_response_i,
     output wire                  profile_supported_o,
     output wire [7:0]            rate_profile_gt_s_o,
     output wire                  link_up_o,
@@ -106,7 +109,8 @@ module reliable_stream_model #(
 
     generic_replay_tx #(
         .DATA_WIDTH(DATA_WIDTH),
-        .MAX_RETRIES(MAX_RETRIES)
+        .MAX_RETRIES(MAX_RETRIES),
+        .RESPONSE_TIMEOUT_CYCLES(RESPONSE_TIMEOUT_CYCLES)
     ) tx_replay (
         .clk(clk),
         .rst_n(rst_n),
@@ -119,7 +123,9 @@ module reliable_stream_model #(
         .frame_seq_o(tx_frame_seq),
         .frame_valid_o(tx_frame_valid),
         .frame_ready_i(tx_frame_ready),
-        .response_valid_i(rx_response_valid),
+        // The abstract response channel may accept and then lose a response
+        // before it reaches the replay sender's input.
+        .response_valid_i(rx_response_valid && !drop_response_i),
         .response_ready_o(tx_response_ready),
         .response_ack_i(rx_response_ack),
         .response_seq_i(rx_response_seq),

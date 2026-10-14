@@ -4,7 +4,9 @@
 module generic_replay_tx #(
     parameter integer DATA_WIDTH = 64,
     parameter integer MAX_RETRIES = 2,
-    parameter integer RETRY_COUNT_WIDTH = 8
+    parameter integer RETRY_COUNT_WIDTH = 8,
+    // Project-local model cycles; zero disables response timeout.
+    parameter integer RESPONSE_TIMEOUT_CYCLES = 16
 ) (
     input  wire                         clk,
     input  wire                         rst_n,
@@ -35,6 +37,9 @@ module generic_replay_tx #(
     reg [15:0] crc_q;
     reg seq_q;
     reg next_seq_q;
+    localparam integer TIMER_WIDTH = (RESPONSE_TIMEOUT_CYCLES > 1) ?
+                                     $clog2(RESPONSE_TIMEOUT_CYCLES) : 1;
+    reg [TIMER_WIDTH-1:0] response_wait_q;
     wire [DATA_WIDTH:0] crc_input;
     wire [15:0] calculated_crc;
     wire frame_handshake;
@@ -64,6 +69,7 @@ module generic_replay_tx #(
             crc_q <= 16'h0000;
             seq_q <= 1'b0;
             retry_count_o <= {RETRY_COUNT_WIDTH{1'b0}};
+            response_wait_q <= {TIMER_WIDTH{1'b0}};
         end else begin
             case (state_q)
                 IDLE: begin
@@ -71,15 +77,19 @@ module generic_replay_tx #(
                         data_q <= s_data_i;
                         crc_q <= calculated_crc;
                         retry_count_o <= {RETRY_COUNT_WIDTH{1'b0}};
+                        response_wait_q <= {TIMER_WIDTH{1'b0}};
                         state_q <= SEND;
                     end
                 end
                 SEND: begin
-                    if (frame_handshake)
+                    if (frame_handshake) begin
+                        response_wait_q <= {TIMER_WIDTH{1'b0}};
                         state_q <= WAIT_RESPONSE;
+                    end
                 end
                 WAIT_RESPONSE: begin
                     if (response_handshake && response_seq_i == seq_q) begin
+                        response_wait_q <= {TIMER_WIDTH{1'b0}};
                         if (response_ack_i) begin
                             seq_q <= ~seq_q;
                             state_q <= IDLE;
@@ -88,6 +98,20 @@ module generic_replay_tx #(
                             state_q <= SEND;
                         end else begin
                             state_q <= FAILED;
+                        end
+                    end else if (RESPONSE_TIMEOUT_CYCLES > 0 && link_active_i) begin
+                        // A matching response wins if it arrives on the expiry
+                        // edge. Time advances only on active-link model cycles.
+                        if (response_wait_q == RESPONSE_TIMEOUT_CYCLES - 1) begin
+                            response_wait_q <= {TIMER_WIDTH{1'b0}};
+                            if (retry_count_o < MAX_RETRIES) begin
+                                retry_count_o <= retry_count_o + 1'b1;
+                                state_q <= SEND;
+                            end else begin
+                                state_q <= FAILED;
+                            end
+                        end else begin
+                            response_wait_q <= response_wait_q + 1'b1;
                         end
                     end
                 end

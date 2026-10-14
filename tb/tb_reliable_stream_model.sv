@@ -1,6 +1,7 @@
 module tb_reliable_stream_model;
     parameter integer RATE_PROFILE_GT_S = 64;
     parameter integer MAX_RETRIES = 2;
+    parameter integer RESPONSE_TIMEOUT_CYCLES = 4;
 
     reg clk = 0;
     always #5 clk = ~clk;
@@ -19,6 +20,7 @@ module tb_reliable_stream_model;
     reg credit_return = 0;
     reg phy_ready = 1;
     reg corrupt_crc = 0;
+    reg drop_response = 0;
     wire profile_supported;
     wire [7:0] rate_profile_gt_s;
     wire link_up;
@@ -36,6 +38,7 @@ module tb_reliable_stream_model;
         .DATA_WIDTH(32),
         .CREDIT_WIDTH(4),
         .MAX_RETRIES(MAX_RETRIES),
+        .RESPONSE_TIMEOUT_CYCLES(RESPONSE_TIMEOUT_CYCLES),
         .RATE_PROFILE_GT_S(RATE_PROFILE_GT_S)
     ) dut (
         .clk(clk),
@@ -53,6 +56,7 @@ module tb_reliable_stream_model;
         .credit_return_i(credit_return),
         .phy_ready_i(phy_ready),
         .corrupt_crc_i(corrupt_crc),
+        .drop_response_i(drop_response),
         .profile_supported_o(profile_supported),
         .rate_profile_gt_s_o(rate_profile_gt_s),
         .link_up_o(link_up),
@@ -222,6 +226,44 @@ module tb_reliable_stream_model;
         @(posedge clk);
         @(negedge clk); m_ready = 0;
         if (m_valid) $fatal(1, "in-flight recovered frame was delivered more than once");
+
+        // Lose one valid ACK at the abstract digital boundary. The sender's
+        // project-defined model-cycle timeout schedules a replay, which is
+        // duplicate-suppressed by RX and must not redeliver the payload.
+        grant_credit();
+        drop_response = 1;
+        send_payload(32'hC0DE_64A5);
+        timeout = 0;
+        while (!(dut.rx_response_valid && dut.tx_response_ready) && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (!(dut.rx_response_valid && dut.tx_response_ready))
+            $fatal(1, "timed out waiting for response-loss injection point");
+        @(posedge clk);
+        @(negedge clk);
+        if (dut.rx_response_valid || !tx_busy || retry_count != 0 ||
+            !m_valid || m_data !== 32'hC0DE_64A5 || credits != 0)
+            $fatal(1, "dropped ACK did not leave replay waiting with RX data retained");
+        drop_response = 0;
+        timeout = 0;
+        while (retry_count != 1 && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (retry_count != 1 || !tx_busy || !m_valid || credits != 0)
+            $fatal(1, "response timeout did not schedule a credit-gated replay");
+        grant_credit();
+        timeout = 0;
+        while (tx_busy && timeout < 30) begin
+            @(negedge clk);
+            timeout = timeout + 1;
+        end
+        if (tx_busy || !m_valid || m_data !== 32'hC0DE_64A5)
+            $fatal(1, "duplicate ACK after timeout did not retire replay exactly once");
+        m_ready = 1;
+        @(negedge clk); m_ready = 0;
+        if (m_valid) $fatal(1, "response-loss replay delivered the payload twice");
 
         // Drop link while a packet waits for a credit; it must survive recovery.
         send_payload(32'hDEAD_BEEF);

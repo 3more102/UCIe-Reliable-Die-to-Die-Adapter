@@ -3,6 +3,7 @@
 module formal_generic_replay_tx;
     localparam integer DATA_WIDTH = 8;
     localparam integer MAX_RETRIES = 2;
+    localparam integer RESPONSE_TIMEOUT_CYCLES = 4;
     localparam [1:0] IDLE = 2'd0, SEND = 2'd1, WAIT_RESPONSE = 2'd2, FAILED = 2'd3;
 
     (* gclk *) reg clk;
@@ -28,7 +29,11 @@ module formal_generic_replay_tx;
     wire failed;
     wire [7:0] retry_count;
 
-    generic_replay_tx #(.DATA_WIDTH(DATA_WIDTH), .MAX_RETRIES(MAX_RETRIES)) dut (
+    generic_replay_tx #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .MAX_RETRIES(MAX_RETRIES),
+        .RESPONSE_TIMEOUT_CYCLES(RESPONSE_TIMEOUT_CYCLES)
+    ) dut (
         .clk(clk), .rst_n(rst_n), .link_active_i(link_active),
         .s_data_i(s_data), .s_valid_i(s_valid), .s_ready_o(s_ready),
         .frame_data_o(frame_data), .frame_crc_o(frame_crc),
@@ -44,6 +49,7 @@ module formal_generic_replay_tx;
     reg [15:0] ref_crc = 0;
     reg ref_seq = 0;
     reg [7:0] ref_retries = 0;
+    reg [$clog2(RESPONSE_TIMEOUT_CYCLES)-1:0] ref_wait = 0;
     wire [DATA_WIDTH:0] ref_crc_input = {ref_seq, s_data};
     wire [15:0] ref_calculated_crc;
     crc16_ccitt #(.DATA_WIDTH(DATA_WIDTH+1)) ref_crc_calc (
@@ -57,6 +63,7 @@ module formal_generic_replay_tx;
             ref_crc <= 0;
             ref_seq <= 0;
             ref_retries <= 0;
+            ref_wait <= 0;
         end else begin
             assert(s_ready == ((ref_state == IDLE) && link_active));
             assert(frame_valid == ((ref_state == SEND) && link_active));
@@ -73,20 +80,37 @@ module formal_generic_replay_tx;
                     ref_data <= s_data;
                     ref_crc <= ref_calculated_crc;
                     ref_retries <= 0;
+                    ref_wait <= 0;
                     ref_state <= SEND;
                 end
-                SEND: if (link_active && frame_ready)
+                SEND: if (link_active && frame_ready) begin
+                    ref_wait <= 0;
                     ref_state <= WAIT_RESPONSE;
-                WAIT_RESPONSE: if (link_active && response_valid &&
-                                    response_seq == ref_seq) begin
-                    if (response_ack) begin
-                        ref_seq <= ~ref_seq;
-                        ref_state <= IDLE;
-                    end else if (ref_retries < MAX_RETRIES) begin
-                        ref_retries <= ref_retries + 1'b1;
-                        ref_state <= SEND;
-                    end else begin
-                        ref_state <= FAILED;
+                end
+                WAIT_RESPONSE: begin
+                    if (link_active && response_valid && response_seq == ref_seq) begin
+                        ref_wait <= 0;
+                        if (response_ack) begin
+                            ref_seq <= ~ref_seq;
+                            ref_state <= IDLE;
+                        end else if (ref_retries < MAX_RETRIES) begin
+                            ref_retries <= ref_retries + 1'b1;
+                            ref_state <= SEND;
+                        end else begin
+                            ref_state <= FAILED;
+                        end
+                    end else if (link_active) begin
+                        if (ref_wait == RESPONSE_TIMEOUT_CYCLES - 1) begin
+                            ref_wait <= 0;
+                            if (ref_retries < MAX_RETRIES) begin
+                                ref_retries <= ref_retries + 1'b1;
+                                ref_state <= SEND;
+                            end else begin
+                                ref_state <= FAILED;
+                            end
+                        end else begin
+                            ref_wait <= ref_wait + 1'b1;
+                        end
                     end
                 end
                 FAILED: ref_state <= FAILED;

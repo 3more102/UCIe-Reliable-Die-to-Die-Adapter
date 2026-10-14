@@ -46,7 +46,7 @@ jobs:
           iverilog -g2012 -s tb_generic_crc_rx -o simv_crc_rx rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv tb/tb_generic_crc_rx.sv
           vvp simv_crc_rx
 
-      - name: Run generic replay sender response and retry boundary regression
+      - name: Run generic replay sender response, timeout, and retry boundary regression
         run: |
           iverilog -g2012 -s tb_generic_replay_tx -o simv_replay_tx rtl/crc16_ccitt.sv rtl/generic_replay_tx.sv tb/tb_generic_replay_tx.sv
           vvp simv_replay_tx
