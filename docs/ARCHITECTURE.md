@@ -14,7 +14,7 @@ This repository implements generic infrastructure and a project-defined digital 
 | Diagnostics | `reliable_stream_model` counters | Saturating counts for CRC error pulses, replay response timeouts, and active-link recoveries; reset clears all counts | Internal project telemetry only; widths and meanings are not UCIe status fields |
 | PHY boundary | `reliable_stream_model` inputs `phy_ready_i`, `corrupt_crc_i`, `drop_response_i` | Single-clock abstract ready signal plus digital CRC and lost-response fault injection | No lane, serializer/deserializer, PHY clock, electrical channel, timing, or sideband pins |
 
-`formal/run_formal.sh` checks reference-model properties for the generic buffer, generic credit counter, prototype link FSM, and generic replay sender. These four block checks are inductive; the generic CRC receiver check is bounded to eight formal cycles. A composed accepted-to-delivered data-order/integrity check is bounded to 16 cycles under arbitrary sampled stalls, credit returns, CRC faults, response loss, link faults, and reset. These checks validate project-local digital contracts only and do not establish UCIe conformance or liveness.
+`formal/run_formal.sh` checks reference-model properties for the generic buffer, generic credit counter, prototype link FSM, and generic replay sender. These four block checks are inductive; the generic CRC receiver check is bounded to 32 formal cycles. A composed accepted-to-delivered data-order/integrity check is bounded to 16 cycles under arbitrary sampled stalls, credit returns, CRC faults, response loss, link faults, and reset. These checks validate project-local digital contracts only and do not establish UCIe conformance or liveness.
 
 ## Project-defined reliability model
 

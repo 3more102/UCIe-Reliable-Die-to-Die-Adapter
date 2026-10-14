@@ -34,11 +34,11 @@ run_proof formal_generic_replay_tx \
 run_proof formal_generic_crc_rx \
     'rtl/crc16_ccitt.sv rtl/generic_crc_rx.sv' \
     'formal/formal_generic_crc_rx.sv' \
-    '-seq 8 -timeout 20'
+    '-seq 32 -timeout 30'
 
 # Bounded end-to-end safety: output data must match accepted source order even
 # with arbitrary stalls, credit returns, CRC faults, response loss, and reset.
 run_proof formal_reliable_stream_safety \
     'rtl/elastic_buffer.sv rtl/crc16_ccitt.sv rtl/credit_tx.sv rtl/link_manager.sv rtl/generic_replay_tx.sv rtl/generic_crc_rx.sv rtl/reliable_stream_model.sv' \
     'formal/formal_reliable_stream_safety.sv' \
-    '-seq 16 -timeout 30'
+    '-seq 16 -timeout 60'
