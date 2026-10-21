@@ -1,0 +1,24 @@
+name: Experimental generic RTL regression (NOT UCIe compliance)
+on:
+  push:
+    branches: [main, feat/meeting2-generic-link-20261021]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  directed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+      - name: Generic directed tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          for test in tb_elastic_buffer tb_credit_tx tb_link_manager tb_stream_link_hold tb_elastic_buffer_random tb_elastic_buffer_stress; do
+            iverilog -g2012 -s "$test" -o "build/$test" rtl/*.sv "tb/$test.sv"
+            vvp "build/$test"
+          done
+      - name: One-bit corruption and retry experiment
+        run: bash scripts/run_experimental_stopwait.sh
