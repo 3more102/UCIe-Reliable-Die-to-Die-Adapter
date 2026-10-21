@@ -19,8 +19,11 @@ module tb_stream_link_hold;
     @(negedge clk);
     credit_return=0;
     link_up=1; s_valid=1; s_data=64'h1234_5678_9abc_def0;
+    // Ready must be checked BEFORE the active sampling edge. After the
+    // transfer, a full one-entry buffer may legitimately deassert ready.
+    #1;
+    if (!s_ready) $fatal(1,"ingress not ready before handshake");
     @(negedge clk);
-    if (!s_ready) $fatal(1,"ingress was not accepted");
     s_valid=0; link_up=0; m_ready=1;
     repeat(3) begin
       @(negedge clk);
