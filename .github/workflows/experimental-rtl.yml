@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Icarus Verilog
-        run: sudo apt-get update && sudo apt-get install -y iverilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog yosys
       - name: Generic directed tests
         shell: bash
         run: |
@@ -20,5 +20,17 @@ jobs:
             iverilog -g2012 -s "$test" -o "build/$test" rtl/*.sv "tb/$test.sv"
             vvp "build/$test"
           done
+      - name: Generic replay storage directed test
+        run: |
+          mkdir -p build
+          iverilog -g2012 -s tb_generic_replay_store -o build/tb_generic_replay_store rtl/generic_replay_store.sv tb/tb_generic_replay_store.sv
+          vvp build/tb_generic_replay_store
       - name: One-bit corruption and retry experiment
         run: bash scripts/run_experimental_stopwait.sh
+      - name: Generic depth sweep — unmapped synthesis statistics only
+        run: bash scripts/run_generic_storage_sweep.sh
+      - name: Publish generic synthesis logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-replay-storage-yosys-logs
+          path: build/generic_storage/depth_*.log
