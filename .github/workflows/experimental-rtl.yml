@@ -1,0 +1,42 @@
+name: Experimental generic RTL regression (NOT UCIe compliance)
+on:
+  push:
+    branches: [main, feat/meeting2-generic-link-20261021]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  directed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog yosys
+      - name: Generic directed tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          for test in tb_elastic_buffer tb_credit_tx tb_link_manager tb_stream_link_hold tb_elastic_buffer_random tb_elastic_buffer_stress; do
+            iverilog -g2012 -s "$test" -o "build/$test" rtl/*.sv "tb/$test.sv"
+            vvp "build/$test"
+          done
+      - name: Generic replay storage directed test
+        run: |
+          mkdir -p build
+          iverilog -g2012 -s tb_generic_replay_store -o build/tb_generic_replay_store rtl/generic_replay_store.sv tb/tb_generic_replay_store.sv
+          vvp build/tb_generic_replay_store
+      - name: One-bit corruption and retry experiment
+        run: bash scripts/run_experimental_stopwait.sh
+      - name: Publish real Icarus VCD waveform
+        uses: actions/upload-artifact@v4
+        with:
+          name: experimental-stopwait-vcd
+          path: build/experimental_stopwait.vcd
+          if-no-files-found: error
+      - name: Generic depth sweep — unmapped synthesis statistics only
+        run: bash scripts/run_generic_storage_sweep.sh
+      - name: Publish generic synthesis logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: generic-replay-storage-yosys-logs
+          path: build/generic_storage/depth_*.log

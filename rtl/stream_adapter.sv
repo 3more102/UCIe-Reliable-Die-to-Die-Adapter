@@ -19,11 +19,14 @@ module stream_adapter #(
     wire [WIDTH-1:0] buffered_data;
     wire buffered_valid, buffered_ready;
     wire ingress_ready;
+    wire ingress_pop_ready;
+    // A link-down hold must not drain the ingress buffer.
+    assign ingress_pop_ready = buffered_ready && link_up;
     elastic_buffer #(.WIDTH(WIDTH)) ingress (
         .clk(clk),.rst_n(rst_n),.s_data(s_data),
         .s_valid(s_valid && link_up),.s_ready(ingress_ready),
         .m_data(buffered_data),.m_valid(buffered_valid),
-        .m_ready(buffered_ready));
+        .m_ready(ingress_pop_ready));
     assign s_ready = link_up && ingress_ready;
     credit_tx #(.WIDTH(WIDTH),.CREDIT_WIDTH(CREDIT_WIDTH)) tx (
         .clk(clk),.rst_n(rst_n),.s_data(buffered_data),
