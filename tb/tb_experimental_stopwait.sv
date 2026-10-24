@@ -44,7 +44,7 @@ module tb_experimental_stopwait;
  // CSV-style per-clock samples embedded in the runner log for reproducible
  // rendering without inventing an idealized timing waveform.
  always @(posedge clk) if(rst_n)
-  $display("TRACECSV,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
+  $display("TRACECSV,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
     cycle,s_valid,s_ready,tx_valid,rx_valid,rx_ready,
     ack_valid,ack_ok,m_valid,m_ready,
     fault_count,crc_error_count,retry_count,sent,received);
