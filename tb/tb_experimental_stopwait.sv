@@ -33,6 +33,21 @@ module tb_experimental_stopwait;
   .m_ready(m_ready),.ack_valid(ack_valid),.ack_seq(ack_seq),
   .ack_ok(ack_ok),.crc_error_count(crc_error_count)
  );
+ // Capture genuine Icarus simulation waveform for Meeting 2 evidence.
+ // The trace describes a generic teaching link, NOT UCIe FDI/replay behavior.
+ initial begin
+  $dumpfile("build/experimental_stopwait.vcd");
+  $dumpvars(0, clk,rst_n,s_valid,s_ready,tx_valid,tx_ready,rx_valid,rx_ready,
+            ack_valid,ack_seq,ack_ok,m_valid,m_ready,pending,
+            fault_count,crc_error_count,retry_count,sent,received);
+ end
+ // CSV-style per-clock samples embedded in the runner log for reproducible
+ // rendering without inventing an idealized timing waveform.
+ always @(posedge clk) if(rst_n)
+  $display("TRACECSV,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d,%0d",
+    cycle,s_valid,s_ready,tx_valid,rx_valid,rx_ready,
+    ack_valid,ack_ok,m_valid,m_ready,
+    fault_count,crc_error_count,retry_count,sent,received);
  // Golden queue originates only at accepted source interface.
  always @(posedge clk) if(rst_n) begin
   if(m_valid && m_ready) begin
