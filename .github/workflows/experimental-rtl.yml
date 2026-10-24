@@ -27,6 +27,12 @@ jobs:
           vvp build/tb_generic_replay_store
       - name: One-bit corruption and retry experiment
         run: bash scripts/run_experimental_stopwait.sh
+      - name: Publish real Icarus VCD waveform
+        uses: actions/upload-artifact@v4
+        with:
+          name: experimental-stopwait-vcd
+          path: build/experimental_stopwait.vcd
+          if-no-files-found: error
       - name: Generic depth sweep — unmapped synthesis statistics only
         run: bash scripts/run_generic_storage_sweep.sh
       - name: Publish generic synthesis logs
